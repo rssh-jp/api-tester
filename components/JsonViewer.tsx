@@ -46,31 +46,33 @@ export default function JsonViewer({ content }: JsonViewerProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#0d1117]">
       {isJson && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700">
-          <button
-            onClick={() => setRaw(false)}
-            className={`text-xs px-2 py-1 rounded ${!raw ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-          >
-            Pretty
-          </button>
-          <button
-            onClick={() => setRaw(true)}
-            className={`text-xs px-2 py-1 rounded ${raw ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-          >
-            Raw
-          </button>
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-800">
+          <div className="flex bg-slate-800/50 rounded-lg p-0.5">
+            <button
+              onClick={() => setRaw(false)}
+              className={`text-xs px-2.5 py-1 rounded-md ${!raw ? 'bg-slate-700 text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Pretty
+            </button>
+            <button
+              onClick={() => setRaw(true)}
+              className={`text-xs px-2.5 py-1 rounded-md ${raw ? 'bg-slate-700 text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Raw
+            </button>
+          </div>
         </div>
       )}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto">
         {isJson && !raw ? (
           <pre
-            className="text-sm font-mono leading-relaxed whitespace-pre-wrap break-words"
+            className="text-sm leading-relaxed font-mono px-4 py-4 whitespace-pre-wrap break-words"
             dangerouslySetInnerHTML={{ __html: syntaxHighlight(prettyContent) }}
           />
         ) : (
-          <pre className="text-sm font-mono text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
+          <pre className="text-sm font-mono text-slate-300 leading-relaxed px-4 py-4 whitespace-pre-wrap break-words">
             {content}
           </pre>
         )}

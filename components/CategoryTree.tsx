@@ -14,13 +14,13 @@ import {
 import { Category, SavedRequest, Selection } from '@/lib/types';
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'text-green-400',
-  POST: 'text-yellow-400',
-  PUT: 'text-blue-400',
-  DELETE: 'text-red-400',
-  PATCH: 'text-orange-400',
-  HEAD: 'text-purple-400',
-  OPTIONS: 'text-pink-400',
+  GET:     'bg-emerald-500/15 text-emerald-400',
+  POST:    'bg-amber-500/15 text-amber-400',
+  PUT:     'bg-blue-500/15 text-blue-400',
+  DELETE:  'bg-red-500/15 text-red-400',
+  PATCH:   'bg-orange-500/15 text-orange-400',
+  HEAD:    'bg-purple-500/15 text-purple-400',
+  OPTIONS: 'bg-pink-500/15 text-pink-400',
 };
 
 interface CategoryTreeProps {
@@ -73,28 +73,28 @@ function RequestRow({ request, depth, selection, onSelect, onDeleteRequest }: Re
 
   return (
     <div
-      className={`group flex items-center gap-1.5 py-1 pr-1 cursor-pointer hover:bg-gray-800 transition-colors ${
-        isSelected ? 'bg-blue-900/50 hover:bg-blue-900/60' : ''
+      className={`group flex items-center gap-1.5 py-1 pr-1 cursor-pointer transition-colors ${
+        isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
       }`}
       style={{ paddingLeft: `${depth * 16 + 24}px` }}
       onClick={() => onSelect({ type: 'request', id: request.id })}
     >
-      <FileJson size={13} className="flex-shrink-0 text-gray-500" />
+      <FileJson size={13} className="flex-shrink-0 text-slate-600" />
       <span
-        className={`flex-shrink-0 text-xs font-semibold ${
-          METHOD_COLORS[request.request.method] ?? 'text-gray-400'
+        className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+          METHOD_COLORS[request.request.method] ?? 'text-slate-400'
         }`}
       >
         {request.request.method}
       </span>
-      <span className="flex-1 min-w-0 text-xs text-gray-300 truncate">{request.name}</span>
+      <span className="flex-1 min-w-0 text-xs text-slate-400 truncate">{request.name}</span>
       <button
         title="Delete request"
         onClick={e => {
           e.stopPropagation();
           onDeleteRequest(request.id);
         }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-500 hover:text-red-400 transition-all flex-shrink-0"
+        className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
       >
         <Trash2 size={12} />
       </button>
@@ -175,8 +175,8 @@ function CategoryNode({
     <div>
       {/* Row */}
       <div
-        className={`group flex items-center gap-1 py-1 pr-1 cursor-pointer hover:bg-gray-800 transition-colors ${
-          isSelected ? 'bg-blue-900/50 hover:bg-blue-900/60' : ''
+        className={`group flex items-center gap-1 py-1 pr-1 cursor-pointer transition-colors ${
+          isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => {
@@ -186,7 +186,7 @@ function CategoryNode({
       >
         {/* Chevron — stopPropagation so it doesn't also trigger the row's onSelect */}
         <span
-          className="flex-shrink-0 text-gray-500"
+          className="flex-shrink-0 text-slate-600"
           onClick={e => {
             e.stopPropagation();
             onToggle(category.id);
@@ -195,7 +195,7 @@ function CategoryNode({
           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
 
-        <span className="flex-shrink-0 text-gray-400">
+        <span className="flex-shrink-0 text-amber-500/70">
           {isExpanded ? <FolderOpen size={14} /> : <Folder size={14} />}
         </span>
 
@@ -213,14 +213,14 @@ function CategoryNode({
             }}
             onBlur={commitRename}
             onClick={e => e.stopPropagation()}
-            className="flex-1 min-w-0 bg-gray-700 text-gray-100 text-xs px-1 py-0.5 rounded outline-none border border-blue-500"
+            className="flex-1 min-w-0 bg-slate-800 border border-indigo-500/60 text-slate-100 text-xs rounded px-1 py-0.5 focus:outline-none"
           />
         ) : (
           <>
-            <span className="flex-1 min-w-0 text-sm text-gray-300 truncate">{category.name}</span>
+            <span className="flex-1 min-w-0 text-sm text-slate-300 truncate">{category.name}</span>
 
             {totalCount > 0 && (
-              <span className="text-xs text-gray-600 flex-shrink-0">({totalCount})</span>
+              <span className="text-[10px] text-slate-600 flex-shrink-0">({totalCount})</span>
             )}
 
             {/* Action buttons — visible on group hover */}
@@ -231,7 +231,7 @@ function CategoryNode({
                   e.stopPropagation();
                   onAddCategory(category.id);
                 }}
-                className="p-0.5 text-gray-500 hover:text-blue-400 transition-colors"
+                className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10"
               >
                 <Plus size={12} />
               </button>
@@ -241,7 +241,7 @@ function CategoryNode({
                   e.stopPropagation();
                   onAddRequest(category.id);
                 }}
-                className="p-0.5 text-gray-500 hover:text-green-400 transition-colors"
+                className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10"
               >
                 <FileJson size={12} />
               </button>
@@ -252,7 +252,7 @@ function CategoryNode({
                   setRenameValue(category.name);
                   setRenamingId(category.id);
                 }}
-                className="p-0.5 text-gray-500 hover:text-yellow-400 transition-colors"
+                className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10"
               >
                 <Edit2 size={12} />
               </button>
@@ -262,7 +262,7 @@ function CategoryNode({
                   e.stopPropagation();
                   handleDelete();
                 }}
-                className="p-0.5 text-gray-500 hover:text-red-400 transition-colors"
+                className="p-0.5 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10"
               >
                 <Trash2 size={12} />
               </button>
@@ -351,19 +351,19 @@ export default function CategoryTree({
   const isEmpty = categories.length === 0 && requests.length === 0;
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#0d1117]">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-2 border-b border-gray-700 flex-shrink-0">
+      <div className="border-b border-slate-800/80 px-2 py-2 flex gap-1 flex-shrink-0">
         <button
           onClick={() => onAddCategory(null)}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md"
         >
           <Plus size={12} />
           New Category
         </button>
         <button
           onClick={() => onAddRequest(null)}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md"
         >
           <Plus size={12} />
           New Request
@@ -395,7 +395,7 @@ export default function CategoryTree({
 
         {uncategorizedRequests.length > 0 && (
           <div className={rootCategories.length > 0 ? 'mt-2' : ''}>
-            <div className="px-3 py-1 text-xs text-gray-600 uppercase tracking-wider font-medium select-none">
+            <div className="text-[10px] uppercase tracking-widest text-slate-700 px-3 py-1.5 select-none">
               Uncategorized
             </div>
             {uncategorizedRequests.map(req => (
@@ -412,7 +412,7 @@ export default function CategoryTree({
         )}
 
         {isEmpty && (
-          <p className="px-4 py-6 text-xs text-gray-600 text-center">
+          <p className="px-4 py-6 text-xs text-slate-700 text-center">
             No categories or requests yet.
             <br />
             Use the buttons above to get started.

@@ -44,26 +44,26 @@ export default function RequestPanel({
   const currentTab = tabs.includes(activeTab) ? activeTab : 'Params';
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <div className="flex border-b border-gray-700">
+    <div className="flex flex-col h-full bg-[#0d1117]">
+      <div className="flex gap-1 p-1.5 bg-[#080c14] border-b border-slate-800">
         {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               currentTab === tab
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
+                ? 'bg-slate-800 text-slate-100'
+                : 'text-slate-500 hover:text-slate-300'
             }`}
           >
             {tab}
             {tab === 'Params' && params.filter(p => p.key).length > 0 && (
-              <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
+              <span className="ml-1 text-[10px] bg-indigo-500/20 text-indigo-400 rounded-full px-1.5 py-0.5">
                 {params.filter(p => p.key).length}
               </span>
             )}
             {tab === 'Headers' && headers.filter(h => h.key && h.enabled).length > 0 && (
-              <span className="ml-1 text-xs bg-blue-600 text-white rounded-full px-1.5 py-0.5">
+              <span className="ml-1 text-[10px] bg-indigo-500/20 text-indigo-400 rounded-full px-1.5 py-0.5">
                 {headers.filter(h => h.key && h.enabled).length}
               </span>
             )}
@@ -91,11 +91,11 @@ export default function RequestPanel({
         {currentTab === 'Body' && (
           <div className="flex flex-col gap-3 h-full">
             <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-400">Content-Type:</label>
+              <label className="text-sm text-slate-400">Content-Type:</label>
               <select
                 value={contentType}
                 onChange={e => onContentTypeChange(e.target.value)}
-                className="bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-blue-500"
+                className="bg-[#161b27] border border-slate-700/60 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20"
               >
                 {CONTENT_TYPES.map(ct => (
                   <option key={ct.value} value={ct.value}>
@@ -108,7 +108,7 @@ export default function RequestPanel({
               value={body}
               onChange={e => onBodyChange(e.target.value)}
               placeholder={contentType === 'application/json' ? '{\n  "key": "value"\n}' : 'Request body...'}
-              className="flex-1 min-h-[120px] bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 font-mono focus:outline-none focus:border-blue-500 resize-none"
+              className="flex-1 min-h-[120px] bg-[#161b27] border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 font-mono focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20 resize-none"
             />
           </div>
         )}

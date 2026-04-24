@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus } from 'lucide-react';
 import {
   HttpMethod,
   KeyValuePair,
@@ -78,14 +78,14 @@ const defaultRequest: RequestState = {
 
 // ─── HistoryList ──────────────────────────────────────────────────────────────
 
-const METHOD_COLORS: Record<string, string> = {
-  GET: 'text-green-400',
-  POST: 'text-yellow-400',
-  PUT: 'text-blue-400',
-  DELETE: 'text-red-400',
-  PATCH: 'text-orange-400',
-  HEAD: 'text-purple-400',
-  OPTIONS: 'text-pink-400',
+const METHOD_BG: Record<string, string> = {
+  GET:     'bg-emerald-500/15 text-emerald-400',
+  POST:    'bg-amber-500/15 text-amber-400',
+  PUT:     'bg-blue-500/15 text-blue-400',
+  DELETE:  'bg-red-500/15 text-red-400',
+  PATCH:   'bg-orange-500/15 text-orange-400',
+  HEAD:    'bg-purple-500/15 text-purple-400',
+  OPTIONS: 'bg-pink-500/15 text-pink-400',
 };
 
 function HistoryList({
@@ -99,25 +99,25 @@ function HistoryList({
 }) {
   if (history.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-gray-900">
-        <div className="flex items-center justify-end px-3 py-2 border-b border-gray-700">
-          <span className="text-xs text-gray-500 flex-1">No history yet</span>
+      <div className="flex flex-col h-full bg-[#0d1117]">
+        <div className="px-3 py-2 border-b border-slate-800/80 flex items-center">
+          <span className="text-xs text-slate-600 flex-1">No history yet</span>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
-          <Clock size={28} className="text-gray-700 mb-3" />
-          <p className="text-xs text-gray-500">Sent requests will appear here.</p>
+          <Clock size={28} className="text-slate-800 mb-3" />
+          <p className="text-xs text-slate-600">Sent requests will appear here.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <div className="flex items-center px-3 py-2 border-b border-gray-700 flex-shrink-0">
-        <span className="text-xs text-gray-400 flex-1">{history.length} item(s)</span>
+    <div className="flex flex-col h-full bg-[#0d1117]">
+      <div className="px-3 py-2 border-b border-slate-800/80 flex items-center flex-shrink-0">
+        <span className="text-xs text-slate-500 flex-1">{history.length} item(s)</span>
         <button
           onClick={onClear}
-          className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+          className="text-xs text-slate-600 hover:text-red-400 transition-colors"
         >
           Clear all
         </button>
@@ -127,34 +127,34 @@ function HistoryList({
           <button
             key={item.id}
             onClick={() => onLoad(item.request)}
-            className="w-full text-left flex items-start gap-2 px-3 py-2 hover:bg-gray-800 border-b border-gray-800 transition-colors group"
+            className="w-full text-left px-3 py-2.5 hover:bg-slate-800/40 border-b border-slate-800/30 transition-colors group"
           >
-            <span
-              className={`flex-shrink-0 text-xs font-semibold pt-0.5 ${
-                METHOD_COLORS[item.request.method] ?? 'text-gray-400'
-              }`}
-            >
-              {item.request.method}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-300 truncate">{item.request.url || '(no url)'}</p>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {new Date(item.timestamp).toLocaleTimeString()}
-                {item.response.status > 0 && (
-                  <span
-                    className={`ml-2 font-medium ${
-                      item.response.status < 300
-                        ? 'text-green-500'
-                        : item.response.status < 400
-                        ? 'text-yellow-500'
-                        : 'text-red-500'
-                    }`}
-                  >
-                    {item.response.status}
-                  </span>
-                )}
-              </p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span
+                className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  METHOD_BG[item.request.method] ?? 'text-slate-400'
+                }`}
+              >
+                {item.request.method}
+              </span>
+              {item.response.status > 0 && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    item.response.status < 300
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : item.response.status < 400
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : 'bg-red-500/15 text-red-400'
+                  }`}
+                >
+                  {item.response.status}
+                </span>
+              )}
             </div>
+            <p className="text-xs text-slate-400 font-mono truncate">{item.request.url || '(no url)'}</p>
+            <p className="text-[10px] text-slate-700 mt-0.5">
+              {new Date(item.timestamp).toLocaleTimeString()}
+            </p>
           </button>
         ))}
       </div>
@@ -164,19 +164,34 @@ function HistoryList({
 
 // ─── WelcomeState ─────────────────────────────────────────────────────────────
 
-function WelcomeState() {
+function WelcomeState({ onNewRequest }: { onNewRequest: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center flex-1 text-center px-8">
-      <Zap size={48} className="text-blue-500 mb-4 opacity-80" />
-      <h2 className="text-xl font-semibold text-gray-200 mb-2">Welcome to API Tester</h2>
-      <p className="text-sm text-gray-500 max-w-sm mb-6">
-        Select a request or category from the left panel to get started, or create a new one.
-      </p>
-      <div className="text-xs text-gray-600 space-y-1">
-        <p>💡 Use <span className="text-gray-400">New Category</span> to group related requests</p>
-        <p>💡 Categories can inherit default headers &amp; params</p>
-        <p>💡 Click <span className="text-gray-400">New Request</span> to create your first request</p>
+    <div className="flex flex-col items-center justify-center h-full bg-[#080c14] text-center px-8 select-none">
+      <div className="w-20 h-20 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6">
+        <Zap size={36} className="text-indigo-400" />
       </div>
+      <h2 className="text-xl font-semibold text-slate-200 mb-2">API Tester</h2>
+      <p className="text-sm text-slate-500 mb-8 max-w-xs leading-relaxed">
+        Organize your requests into categories, set default headers and parameters, and test any API.
+      </p>
+      <div className="flex flex-col gap-2 text-left w-full max-w-xs">
+        {[
+          ['1', 'Create a category in the left panel'],
+          ['2', 'Add a request inside it'],
+          ['3', 'Hit Send and inspect the response'],
+        ].map(([n, text]) => (
+          <div key={n} className="flex items-center gap-3 text-sm text-slate-500">
+            <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs font-bold flex-shrink-0">{n}</span>
+            {text}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={onNewRequest}
+        className="mt-8 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/20"
+      >
+        <Plus size={15} /> New Request
+      </button>
     </div>
   );
 }
@@ -440,17 +455,15 @@ export default function ApiTester() {
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className={`flex flex-col h-screen ${
-        theme === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-gray-100 text-gray-900'
-      }`}
-    >
+    <div className="bg-[#080c14] text-slate-100 flex flex-col h-screen">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700 flex-shrink-0">
-        <span className="text-blue-400 font-bold text-lg">⚡ API Tester</span>
+      <header className="bg-[#0d1117]/80 backdrop-blur border-b border-slate-800/80 px-5 py-3 flex items-center justify-between flex-shrink-0">
+        <span className="text-indigo-400 font-bold text-base tracking-tight flex items-center gap-2">
+          <Zap size={16} className="text-indigo-400" /> API Tester
+        </span>
         <button
           onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-          className="p-2 rounded text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/60"
         >
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
@@ -459,17 +472,17 @@ export default function ApiTester() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left pane */}
         {sidebarOpen && (
-          <div className="w-72 flex-shrink-0 flex flex-col border-r border-gray-700">
+          <div className="w-72 flex-shrink-0 flex flex-col border-r border-slate-800/80">
             {/* Tab switcher */}
-            <div className="flex border-b border-gray-700 flex-shrink-0">
+            <div className="flex gap-1 p-1.5 bg-[#080c14] border-b border-slate-800">
               {(['collections', 'history'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setLeftTab(tab)}
-                  className={`flex-1 py-2 text-xs font-medium capitalize transition-colors border-b-2 ${
+                  className={`flex-1 py-1.5 text-xs font-medium capitalize rounded-md transition-colors ${
                     leftTab === tab
-                      ? 'border-blue-500 text-blue-400'
-                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                      ? 'bg-slate-800 text-slate-100'
+                      : 'text-slate-500 hover:text-slate-300'
                   }`}
                 >
                   {tab}
@@ -506,14 +519,14 @@ export default function ApiTester() {
         {/* Sidebar toggle strip */}
         <button
           onClick={() => setSidebarOpen(o => !o)}
-          className="flex-shrink-0 w-5 flex items-center justify-center bg-gray-800 hover:bg-gray-700 border-r border-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
+          className="w-5 bg-[#0d1117] border-x border-slate-800/80 text-slate-700 hover:text-slate-400 hover:bg-slate-800/40 flex items-center justify-center flex-shrink-0"
         >
           {sidebarOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
         </button>
 
         {/* Right pane */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          {selection === null && <WelcomeState />}
+          {selection === null && <WelcomeState onNewRequest={() => handleAddRequest(null)} />}
 
           {selection?.type === 'category' && selectedCategory && (
             <CategoryEditor
@@ -526,7 +539,7 @@ export default function ApiTester() {
           {selection?.type === 'request' && (
             <>
               {/* URL bar + save */}
-              <div className="flex items-center gap-2 px-2 py-1.5 border-b border-gray-700 bg-gray-900 flex-shrink-0">
+              <div className="flex items-center gap-2 px-2 py-1.5 border-b border-slate-800 bg-[#0d1117] flex-shrink-0">
                 <div className="flex-1 min-w-0">
                   <UrlBar
                     method={editingRequest.method}
@@ -539,14 +552,14 @@ export default function ApiTester() {
                 </div>
                 <button
                   onClick={handleSaveCurrentRequest}
-                  className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+                  className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700/60"
                 >
                   Save
                 </button>
               </div>
 
               {/* Request panel */}
-              <div className="h-[45%] border-b border-gray-700 overflow-hidden flex-shrink-0">
+              <div className="h-[45%] border-b border-slate-800 overflow-hidden flex-shrink-0">
                 <RequestPanel
                   method={editingRequest.method}
                   params={editingRequest.params}
