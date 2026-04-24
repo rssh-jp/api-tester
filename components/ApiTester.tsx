@@ -538,6 +538,21 @@ export default function ApiTester() {
 
           {selection?.type === 'request' && (
             <>
+              {/* Request name editor */}
+              <div className="px-5 pt-4 pb-3 border-b border-slate-800/60 bg-[#0d1117] flex-shrink-0">
+                <input
+                  type="text"
+                  value={selectedRequest?.name ?? ''}
+                  onChange={e => {
+                    if (!selectedRequest) return;
+                    updateSavedRequest(selectedRequest.id, { name: e.target.value });
+                    setRequests(getSaved());
+                  }}
+                  placeholder="Request name"
+                  className="w-full bg-transparent text-lg font-semibold text-slate-100 placeholder-slate-600 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5 transition-colors"
+                />
+              </div>
+
               {/* URL bar + save */}
               <div className="flex items-center gap-2 px-2 py-1.5 border-b border-slate-800 bg-[#0d1117] flex-shrink-0">
                 <div className="flex-1 min-w-0">
