@@ -327,7 +327,7 @@ export default function ApiTester() {
         status: data.status || res.status,
         statusText: data.statusText || '',
         headers: data.headers || {},
-        body: data.body || '',
+        body: data.body ?? '',
         responseTime: data.responseTime || 0,
         size: data.size || 0,
         error: data.error,
