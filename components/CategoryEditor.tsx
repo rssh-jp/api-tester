@@ -2,21 +2,24 @@
 
 import { Fragment, useState } from 'react';
 import { Folder, GitBranch, Info } from 'lucide-react';
-import { Category, KeyValuePair } from '@/lib/types';
+import { Category, KeyValuePair, SavedRequest } from '@/lib/types';
 import { buildCategoryChain } from '@/lib/inheritance';
 import KeyValueTable from './KeyValueTable';
+import BatchRunTab from './BatchRunTab';
 
 interface CategoryEditorProps {
   category: Category;
   categories: Category[];
+  requests: SavedRequest[];
   onChange: (updated: Category) => void;
+  onSelectRequest: (id: string) => void;
 }
 
-type Tab = 'Default Headers' | 'Default Params' | 'Inheritance Preview';
-const TABS: Tab[] = ['Default Headers', 'Default Params', 'Inheritance Preview'];
+type Tab = 'Settings' | 'Batch Run';
+const TABS: Tab[] = ['Settings', 'Batch Run'];
 
-export default function CategoryEditor({ category, categories, onChange }: CategoryEditorProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('Default Headers');
+export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest }: CategoryEditorProps) {
+  const [activeTab, setActiveTab] = useState<Tab>('Batch Run');
 
   // Build breadcrumb path: root → ... → parent (reversed ancestor chain)
   const ancestorChain = buildCategoryChain(category.parentId, categories);
@@ -78,47 +81,59 @@ export default function CategoryEditor({ category, categories, onChange }: Categ
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-auto p-5">
-        {activeTab === 'Default Headers' && (
-          <div>
-            <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
-              <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
-              <span>
-                These headers are applied to all requests in this category. Higher-level categories
-                override these values.
-              </span>
-            </div>
-            <KeyValueTable
-              pairs={category.defaultHeaders}
-              onChange={newPairs => onChange({ ...category, defaultHeaders: newPairs })}
-              showEnabled={true}
-              keyPlaceholder="Header name"
-              valuePlaceholder="Value"
-            />
+      <div className={`flex-1 ${activeTab === 'Batch Run' ? 'overflow-hidden' : 'overflow-auto p-5'}`}>
+        {activeTab === 'Settings' && (
+          <div className="flex flex-col gap-8">
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Default Headers</h3>
+              <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
+                <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
+                <span>
+                  These headers are applied to all requests in this category. Higher-level categories
+                  override these values.
+                </span>
+              </div>
+              <KeyValueTable
+                pairs={category.defaultHeaders}
+                onChange={newPairs => onChange({ ...category, defaultHeaders: newPairs })}
+                showEnabled={true}
+                keyPlaceholder="Header name"
+                valuePlaceholder="Value"
+              />
+            </section>
+
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Default Parameters</h3>
+              <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
+                <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
+                <span>
+                  These query parameters are applied to all requests in this category. Higher-level
+                  categories override these values.
+                </span>
+              </div>
+              <KeyValueTable
+                pairs={category.defaultParams}
+                onChange={newPairs => onChange({ ...category, defaultParams: newPairs })}
+                showEnabled={true}
+                keyPlaceholder="Parameter name"
+                valuePlaceholder="Value"
+              />
+            </section>
+
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Inheritance Preview</h3>
+              <InheritancePreview category={category} categories={categories} />
+            </section>
           </div>
         )}
 
-        {activeTab === 'Default Params' && (
-          <div>
-            <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
-              <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
-              <span>
-                These query parameters are applied to all requests in this category. Higher-level
-                categories override these values.
-              </span>
-            </div>
-            <KeyValueTable
-              pairs={category.defaultParams}
-              onChange={newPairs => onChange({ ...category, defaultParams: newPairs })}
-              showEnabled={true}
-              keyPlaceholder="Parameter name"
-              valuePlaceholder="Value"
-            />
-          </div>
-        )}
-
-        {activeTab === 'Inheritance Preview' && (
-          <InheritancePreview category={category} categories={categories} />
+        {activeTab === 'Batch Run' && (
+          <BatchRunTab
+            category={category}
+            categories={categories}
+            requests={requests}
+            onSelectRequest={onSelectRequest}
+          />
         )}
       </div>
     </div>

@@ -69,3 +69,17 @@ export type Selection =
   | { type: 'request'; id: string }
   | { type: 'category'; id: string }
   | null;
+
+export type BatchRunStatus = 'pending' | 'running' | 'success' | 'failure' | 'skipped';
+
+export interface BatchRunResult {
+  requestId: string;
+  requestName: string;
+  method: HttpMethod;
+  url: string;
+  status: BatchRunStatus;
+  httpStatus?: number;
+  httpStatusText?: string;
+  responseTime?: number;
+  error?: string;
+}

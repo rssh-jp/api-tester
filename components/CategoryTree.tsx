@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Copy,
 } from 'lucide-react';
 import { Category, SavedRequest, Selection } from '@/lib/types';
 
@@ -31,6 +32,7 @@ interface CategoryTreeProps {
   onAddCategory: (parentId: string | null) => void;
   onRenameCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
+  onDuplicateCategory: (id: string) => void;
   onAddRequest: (categoryId: string | null) => void;
   onDeleteRequest: (id: string) => void;
   onMoveRequest: (requestId: string, newCategoryId: string | null) => void;
@@ -116,6 +118,7 @@ interface CategoryNodeProps {
   onAddCategory: (parentId: string | null) => void;
   onRenameCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
+  onDuplicateCategory: (id: string) => void;
   onAddRequest: (categoryId: string | null) => void;
   onDeleteRequest: (id: string) => void;
   renamingId: string | null;
@@ -134,6 +137,7 @@ function CategoryNode({
   onAddCategory,
   onRenameCategory,
   onDeleteCategory,
+  onDuplicateCategory,
   onAddRequest,
   onDeleteRequest,
   renamingId,
@@ -257,6 +261,16 @@ function CategoryNode({
                 <Edit2 size={12} />
               </button>
               <button
+                title="Duplicate category"
+                onClick={e => {
+                  e.stopPropagation();
+                  onDuplicateCategory(category.id);
+                }}
+                className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10"
+              >
+                <Copy size={12} />
+              </button>
+              <button
                 title="Delete"
                 onClick={e => {
                   e.stopPropagation();
@@ -288,6 +302,7 @@ function CategoryNode({
               onAddCategory={onAddCategory}
               onRenameCategory={onRenameCategory}
               onDeleteCategory={onDeleteCategory}
+              onDuplicateCategory={onDuplicateCategory}
               onAddRequest={onAddRequest}
               onDeleteRequest={onDeleteRequest}
               renamingId={renamingId}
@@ -320,6 +335,7 @@ export default function CategoryTree({
   onAddCategory,
   onRenameCategory,
   onDeleteCategory,
+  onDuplicateCategory,
   onAddRequest,
   onDeleteRequest,
   onMoveRequest: _onMoveRequest,
@@ -386,6 +402,7 @@ export default function CategoryTree({
             onAddCategory={onAddCategory}
             onRenameCategory={onRenameCategory}
             onDeleteCategory={onDeleteCategory}
+            onDuplicateCategory={onDuplicateCategory}
             onAddRequest={onAddRequest}
             onDeleteRequest={onDeleteRequest}
             renamingId={renamingId}

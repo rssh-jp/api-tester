@@ -3,6 +3,27 @@
 import { useState } from 'react';
 import { ResponseState } from '@/lib/types';
 import JsonViewer from './JsonViewer';
+import HtmlViewer from './HtmlViewer';
+import XmlViewer from './XmlViewer';
+import ImageViewer from './ImageViewer';
+
+type ViewerType = 'html' | 'json' | 'xml' | 'image' | 'text' | 'binary';
+
+function detectViewerType(response: ResponseState): ViewerType {
+  const ct = (response.contentType ?? '').split(';')[0].trim().toLowerCase();
+  if (response.isBinary) {
+    return ct.startsWith('image/') ? 'image' : 'binary';
+  }
+  if (ct === 'text/html') return 'html';
+  if (ct === 'application/json' || ct === 'text/json') return 'json';
+  if (ct === 'text/xml' || ct === 'application/xml' || ct.endsWith('+xml')) return 'xml';
+  if (ct.startsWith('image/')) return 'image';
+  if (ct === 'text/plain' || ct.startsWith('text/')) return 'text';
+  if (!ct) {
+    try { JSON.parse(response.body); return 'json'; } catch { return 'text'; }
+  }
+  return 'text';
+}
 
 interface ResponsePanelProps {
   response: ResponseState | null;
@@ -118,21 +139,38 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'Body' && (
-          response.isBinary
-            ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
-                <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">🖼️</div>
-                <p className="text-sm font-medium text-slate-300">バイナリ / 画像レスポンス</p>
-                <p className="text-xs text-slate-500 font-mono">{response.contentType || 'unknown content-type'}</p>
-                <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
-                  このレスポンスはテキストとして表示できません。
-                  {response.redirected ? ' リクエストがリダイレクトされた先にバイナリファイルがあります。URL を確認してください。' : ''}
-                </p>
-              </div>
-            )
-            : <JsonViewer content={response.body} />
-        )}
+        {activeTab === 'Body' && (() => {
+          const viewerType = detectViewerType(response);
+          switch (viewerType) {
+            case 'html':
+              return <HtmlViewer content={response.body} />;
+            case 'json':
+              return <JsonViewer content={response.body} />;
+            case 'xml':
+              return <XmlViewer content={response.body} />;
+            case 'image':
+              return <ImageViewer body={response.body} contentType={response.contentType ?? ''} isBinary={response.isBinary} />;
+            case 'binary':
+              return (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
+                  <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">🖼️</div>
+                  <p className="text-sm font-medium text-slate-300">バイナリ / 画像レスポンス</p>
+                  <p className="text-xs text-slate-500 font-mono">{response.contentType || 'unknown content-type'}</p>
+                  <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
+                    このレスポンスはテキストとして表示できません。
+                    {response.redirected ? ' リクエストがリダイレクトされた先にバイナリファイルがあります。URL を確認してください。' : ''}
+                  </p>
+                </div>
+              );
+            case 'text':
+            default:
+              return (
+                <pre className="flex-1 overflow-auto p-4 text-xs font-mono text-slate-300 bg-[#0d1117] leading-relaxed whitespace-pre-wrap break-all h-full">
+                  {response.body}
+                </pre>
+              );
+          }
+        })()}
         {activeTab === 'Headers' && (
           <div className="overflow-auto h-full p-4">
             <table className="w-full text-sm">

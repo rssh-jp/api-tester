@@ -23,6 +23,7 @@ import {
   getCategories,
   saveCategory,
   deleteCategory,
+  duplicateCategory,
 } from '@/lib/storage';
 import { computeEffectiveValues } from '@/lib/inheritance';
 import UrlBar from './UrlBar';
@@ -213,9 +214,11 @@ export default function ApiTester() {
   // ── mount ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    setCategories(getCategories());
-    setRequests(getSaved());
-    setHistory(getHistory());
+    (async () => {
+      setCategories(await getCategories());
+      setRequests(await getSaved());
+      setHistory(await getHistory());
+    })();
   }, []);
 
   useEffect(() => {
@@ -348,13 +351,13 @@ export default function ApiTester() {
         response: responseState,
         timestamp: Date.now(),
       };
-      addToHistory(historyItem);
-      setHistory(getHistory());
+      await addToHistory(historyItem);
+      setHistory(await getHistory());
 
       // Auto-save back
       if (selectedRequest) {
-        updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
-        setRequests(getSaved());
+        await updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
+        setRequests(await getSaved());
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send request';
@@ -374,15 +377,15 @@ export default function ApiTester() {
 
   // ── save current request ───────────────────────────────────────────────────
 
-  const handleSaveCurrentRequest = useCallback(() => {
+  const handleSaveCurrentRequest = useCallback(async () => {
     if (!selectedRequest) return;
-    updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
-    setRequests(getSaved());
+    await updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
+    setRequests(await getSaved());
   }, [selectedRequest, editingRequest]);
 
   // ── category handlers ──────────────────────────────────────────────────────
 
-  const handleAddCategory = useCallback((parentId: string | null) => {
+  const handleAddCategory = useCallback(async (parentId: string | null) => {
     const name = window.prompt('Category name:', 'New Category');
     if (!name?.trim()) return;
     const cat: Category = {
@@ -393,34 +396,47 @@ export default function ApiTester() {
       defaultParams: [],
       createdAt: Date.now(),
     };
-    saveCategory(cat);
-    setCategories(getCategories());
+    await saveCategory(cat);
+    setCategories(await getCategories());
   }, []);
 
-  const handleRenameCategory = useCallback((id: string, newName: string) => {
-    const cat = getCategories().find(c => c.id === id);
+  const handleRenameCategory = useCallback(async (id: string, newName: string) => {
+    const cats = await getCategories();
+    const cat = cats.find(c => c.id === id);
     if (!cat) return;
-    saveCategory({ ...cat, name: newName });
-    setCategories(getCategories());
+    await saveCategory({ ...cat, name: newName });
+    setCategories(await getCategories());
   }, []);
 
-  const handleDeleteCategory = useCallback((id: string) => {
-    deleteCategory(id);
-    setCategories(getCategories());
-    setRequests(getSaved());
+  const handleDeleteCategory = useCallback(async (id: string) => {
+    await deleteCategory(id);
+    setCategories(await getCategories());
+    setRequests(await getSaved());
     if (selection?.type === 'category' && selection.id === id) {
       setSelection(null);
     }
   }, [selection]);
 
-  const handleCategoryChange = useCallback((updated: Category) => {
-    saveCategory(updated);
-    setCategories(getCategories());
+  const handleDuplicateCategory = useCallback(async (id: string) => {
+    try {
+      const newId = await duplicateCategory(id);
+      const [updatedCats, updatedSaved] = await Promise.all([getCategories(), getSaved()]);
+      setCategories(updatedCats);
+      setRequests(updatedSaved);
+      setSelection({ type: 'category', id: newId });
+    } catch (err) {
+      console.error('Failed to duplicate category:', err);
+    }
+  }, []);
+
+  const handleCategoryChange = useCallback(async (updated: Category) => {
+    await saveCategory(updated);
+    setCategories(await getCategories());
   }, []);
 
   // ── request handlers ───────────────────────────────────────────────────────
 
-  const handleAddRequest = useCallback((categoryId: string | null) => {
+  const handleAddRequest = useCallback(async (categoryId: string | null) => {
     const item: SavedRequest = {
       id: genId(),
       name: 'New Request',
@@ -428,22 +444,22 @@ export default function ApiTester() {
       request: { ...defaultRequest },
       createdAt: Date.now(),
     };
-    saveRequest(item);
-    setRequests(getSaved());
+    await saveRequest(item);
+    setRequests(await getSaved());
     setSelection({ type: 'request', id: item.id });
   }, []);
 
-  const handleDeleteRequest = useCallback((id: string) => {
-    deleteSaved(id);
-    setRequests(getSaved());
+  const handleDeleteRequest = useCallback(async (id: string) => {
+    await deleteSaved(id);
+    setRequests(await getSaved());
     if (selection?.type === 'request' && selection.id === id) {
       setSelection(null);
     }
   }, [selection]);
 
-  const handleMoveRequest = useCallback((requestId: string, newCategoryId: string | null) => {
-    updateSavedRequest(requestId, { categoryId: newCategoryId });
-    setRequests(getSaved());
+  const handleMoveRequest = useCallback(async (requestId: string, newCategoryId: string | null) => {
+    await updateSavedRequest(requestId, { categoryId: newCategoryId });
+    setRequests(await getSaved());
   }, []);
 
   // ── history handlers ───────────────────────────────────────────────────────
@@ -454,8 +470,8 @@ export default function ApiTester() {
     setSelection(null);
   }, []);
 
-  const handleClearHistory = useCallback(() => {
-    clearHistory();
+  const handleClearHistory = useCallback(async () => {
+    await clearHistory();
     setHistory([]);
   }, []);
 
@@ -507,6 +523,7 @@ export default function ApiTester() {
                   onAddCategory={handleAddCategory}
                   onRenameCategory={handleRenameCategory}
                   onDeleteCategory={handleDeleteCategory}
+                  onDuplicateCategory={handleDuplicateCategory}
                   onAddRequest={handleAddRequest}
                   onDeleteRequest={handleDeleteRequest}
                   onMoveRequest={handleMoveRequest}
@@ -539,7 +556,9 @@ export default function ApiTester() {
             <CategoryEditor
               category={selectedCategory}
               categories={categories}
+              requests={requests}
               onChange={handleCategoryChange}
+              onSelectRequest={id => setSelection({ type: 'request', id })}
             />
           )}
 
@@ -550,10 +569,10 @@ export default function ApiTester() {
                 <input
                   type="text"
                   value={selectedRequest?.name ?? ''}
-                  onChange={e => {
+                  onChange={async e => {
                     if (!selectedRequest) return;
-                    updateSavedRequest(selectedRequest.id, { name: e.target.value });
-                    setRequests(getSaved());
+                    await updateSavedRequest(selectedRequest.id, { name: e.target.value });
+                    setRequests(await getSaved());
                   }}
                   placeholder="Request name"
                   className="w-full bg-transparent text-lg font-semibold text-slate-100 placeholder-slate-600 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5 transition-colors"
