@@ -75,6 +75,25 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
         <span className="bg-slate-800/50 rounded px-1.5 py-0.5 text-xs text-slate-400 font-mono">{formatSize(response.size)}</span>
       </div>
 
+      {/* Redirect notice */}
+      {response.redirected && response.finalUrl && (
+        <div className="mx-4 mt-3 flex items-start gap-2 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2.5 text-xs">
+          <span className="text-amber-400 font-semibold flex-shrink-0">↪ Redirected</span>
+          <span className="text-amber-300/70 font-mono break-all">{response.finalUrl}</span>
+        </div>
+      )}
+
+      {/* Binary / image response warning */}
+      {response.isBinary && (
+        <div className="mx-4 mt-3 flex items-start gap-2 bg-slate-500/8 border border-slate-500/20 rounded-lg px-3 py-2.5 text-xs">
+          <span className="text-slate-400 font-semibold flex-shrink-0">⚠ Binary response</span>
+          <span className="text-slate-400 break-all">
+            Content-Type: <span className="font-mono text-indigo-300">{response.contentType || 'unknown'}</span>
+            {response.redirected && ' — リクエストがバイナリファイル（画像など）へリダイレクトされています。URLを確認してください。'}
+          </span>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-1 p-1.5 bg-[#080c14] border-b border-slate-800">
         {['Body', 'Headers'].map(tab => (
@@ -99,7 +118,21 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'Body' && <JsonViewer content={response.body} />}
+        {activeTab === 'Body' && (
+          response.isBinary
+            ? (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
+                <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">🖼️</div>
+                <p className="text-sm font-medium text-slate-300">バイナリ / 画像レスポンス</p>
+                <p className="text-xs text-slate-500 font-mono">{response.contentType || 'unknown content-type'}</p>
+                <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
+                  このレスポンスはテキストとして表示できません。
+                  {response.redirected ? ' リクエストがリダイレクトされた先にバイナリファイルがあります。URL を確認してください。' : ''}
+                </p>
+              </div>
+            )
+            : <JsonViewer content={response.body} />
+        )}
         {activeTab === 'Headers' && (
           <div className="overflow-auto h-full p-4">
             <table className="w-full text-sm">

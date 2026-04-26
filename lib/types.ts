@@ -24,6 +24,14 @@ export interface ResponseState {
   responseTime: number;
   size: number;
   error?: string;
+  /** Content-Type of the actual response (e.g. "application/json", "image/svg+xml") */
+  contentType?: string;
+  /** true when the server redirected the request */
+  redirected?: boolean;
+  /** Final URL after all redirects */
+  finalUrl?: string;
+  /** true when the response body was binary and could not be decoded as text */
+  isBinary?: boolean;
 }
 
 export interface HistoryItem {

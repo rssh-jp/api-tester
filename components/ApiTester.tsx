@@ -331,6 +331,10 @@ export default function ApiTester() {
         responseTime: data.responseTime || 0,
         size: data.size || 0,
         error: data.error,
+        contentType: data.contentType,
+        redirected: data.redirected,
+        finalUrl: data.finalUrl,
+        isBinary: data.isBinary,
       };
 
       setResponse(responseState);

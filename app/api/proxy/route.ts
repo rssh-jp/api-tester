@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
       headers: reqHeaders || {},
       // Disable Next.js fetch caching so we always get a fresh response
       cache: 'no-store',
+      // Follow redirects so we get the final response, but track it
+      redirect: 'follow',
     };
 
     if (body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
@@ -52,8 +54,12 @@ export async function POST(req: NextRequest) {
     const response = await fetch(url, fetchOptions);
     const responseTime = Date.now() - startTime;
 
+    const contentType = response.headers.get('content-type') ?? '';
+    // Binary types cannot be meaningfully shown as text
+    const isBinary = /^(image|audio|video|font)\/|^application\/octet-stream|^application\/pdf/.test(contentType);
+
     // Read the full body — all chunks, not just the last one
-    const responseBody = await readFullBody(response);
+    const responseBody = isBinary ? '' : await readFullBody(response);
 
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -66,7 +72,13 @@ export async function POST(req: NextRequest) {
       headers: responseHeaders,
       body: responseBody,
       responseTime,
-      size: new TextEncoder().encode(responseBody).length,
+      size: isBinary
+        ? parseInt(response.headers.get('content-length') ?? '0', 10) || 0
+        : new TextEncoder().encode(responseBody).length,
+      contentType,
+      redirected: response.redirected,
+      finalUrl: response.url,
+      isBinary,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Request failed';
