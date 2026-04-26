@@ -1,11 +1,6 @@
 ---
 description: コードの品質・仕様整合性・セキュリティをレビューするレビューエージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, search]
 ---
 
 # レビューエージェント

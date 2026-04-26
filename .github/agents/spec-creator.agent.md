@@ -1,11 +1,6 @@
 ---
 description: 新機能の仕様書を作成する仕様作成エージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, edit, search, web]
 ---
 
 # 仕様作成エージェント

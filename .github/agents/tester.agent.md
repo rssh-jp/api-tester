@@ -1,11 +1,6 @@
 ---
 description: 実装コードのビルド確認・品質検証・手動テストシナリオ作成を行うテストエージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, edit, search, execute]
 ---
 
 # テストエージェント

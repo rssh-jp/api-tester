@@ -1,35 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as http from 'node:http';
+import * as https from 'node:https';
 
-/** Read the full response body by consuming the ReadableStream chunk by chunk.
- *  `response.text()` can silently return only the last chunk on some runtimes
- *  when the server uses chunked transfer-encoding, so we accumulate manually. */
-async function readFullBody(response: Response): Promise<string> {
-  if (!response.body) return '';
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value);
+function makeRequest(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: string | undefined,
+  redirectCount = 0
+): Promise<{
+  statusCode: number;
+  statusText: string;
+  headers: Record<string, string>;
+  buffer: Buffer;
+  finalUrl: string;
+}> {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 10) {
+      return reject(new Error('Too many redirects'));
     }
-  } finally {
-    reader.releaseLock();
-  }
 
-  // Concatenate all chunks into a single buffer before decoding
-  let totalLength = 0;
-  for (const c of chunks) totalLength += c.length;
-  const merged = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const c of chunks) {
-    merged.set(c, offset);
-    offset += c.length;
-  }
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return reject(new Error(`Invalid URL: ${url}`));
+    }
 
-  return new TextDecoder('utf-8').decode(merged);
+    const isHttps = parsedUrl.protocol === 'https:';
+    const lib = isHttps ? https : http;
+
+    const options: http.RequestOptions = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (isHttps ? 443 : 80),
+      path: parsedUrl.pathname + parsedUrl.search,
+      method,
+      headers,
+    };
+
+    const clientReq = lib.request(options, (res) => {
+      // Handle redirects
+      if (
+        res.statusCode !== undefined &&
+        res.statusCode >= 300 &&
+        res.statusCode < 400 &&
+        res.headers.location
+      ) {
+        res.resume(); // drain the response
+        const redirectUrl = new URL(res.headers.location, url).toString();
+        // On redirect, strip body for GET-like redirects
+        const redirectMethod =
+          res.statusCode === 303 ? 'GET' : method;
+        const redirectBody =
+          redirectMethod === 'GET' ? undefined : body;
+        resolve(
+          makeRequest(redirectUrl, redirectMethod, headers, redirectBody, redirectCount + 1)
+        );
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const responseHeaders: Record<string, string> = {};
+        for (const [key, value] of Object.entries(res.headers)) {
+          if (value === undefined) continue;
+          responseHeaders[key] = Array.isArray(value) ? value.join(', ') : value;
+        }
+        resolve({
+          statusCode: res.statusCode ?? 0,
+          statusText: res.statusMessage ?? '',
+          headers: responseHeaders,
+          buffer,
+          finalUrl: url,
+        });
+      });
+      res.on('error', reject);
+    });
+
+    clientReq.on('error', reject);
+
+    if (body) {
+      clientReq.write(body);
+    }
+    clientReq.end();
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -38,54 +94,44 @@ export async function POST(req: NextRequest) {
 
     const startTime = Date.now();
 
-    const fetchOptions: RequestInit = {
+    const bodyToSend: string | undefined =
+      body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? body : undefined;
+
+    const { statusCode, statusText, headers, buffer, finalUrl } = await makeRequest(
+      url,
       method,
-      headers: reqHeaders || {},
-      // Disable Next.js fetch caching so we always get a fresh response
-      cache: 'no-store',
-      // Follow redirects so we get the final response, but track it
-      redirect: 'follow',
-    };
+      reqHeaders || {},
+      bodyToSend
+    );
 
-    if (body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-      fetchOptions.body = body;
-    }
-
-    const response = await fetch(url, fetchOptions);
     const responseTime = Date.now() - startTime;
 
-    const contentType = response.headers.get('content-type') ?? '';
-    // Binary types cannot be meaningfully shown as text
-    const isBinary = /^(image|audio|video|font)\/|^application\/octet-stream|^application\/pdf/.test(contentType);
+    const contentType = headers['content-type'] ?? '';
+    const isBinary =
+      /^(image|audio|video|font)\/|^application\/octet-stream|^application\/pdf/.test(
+        contentType
+      );
 
-    // Read the full body — all chunks, not just the last one
-    const responseBody = isBinary ? '' : await readFullBody(response);
-
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
+    const responseBody = isBinary ? '' : buffer.toString('utf-8');
+    const size = isBinary
+      ? parseInt(headers['content-length'] ?? '0', 10) || 0
+      : buffer.length;
 
     return NextResponse.json({
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
+      status: statusCode,
+      statusText,
+      headers,
       body: responseBody,
       responseTime,
-      size: isBinary
-        ? parseInt(response.headers.get('content-length') ?? '0', 10) || 0
-        : new TextEncoder().encode(responseBody).length,
+      size,
       contentType,
-      redirected: response.redirected,
-      finalUrl: response.url,
+      redirected: false,
+      finalUrl,
       isBinary,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Request failed';
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

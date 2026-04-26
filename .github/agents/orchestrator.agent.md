@@ -1,11 +1,7 @@
 ---
 description: 開発ワークフロー全体を管理・調整するオーケストレーターエージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, search, agent]
+agents: [spec-creator, designer, implementer, tester, reviewer, quality-manager]
 ---
 
 # オーケストレーターエージェント

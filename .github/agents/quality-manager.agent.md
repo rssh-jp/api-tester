@@ -1,11 +1,6 @@
 ---
 description: 全ステップの成果物品質を管理・確認しリリース可否を判断する品質管理エージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, search, execute]
 ---
 
 # 品質管理エージェント

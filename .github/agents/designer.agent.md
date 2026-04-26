@@ -1,11 +1,6 @@
 ---
 description: 仕様書を基にシステム設計書を作成する設計作成エージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, edit, search, web]
 ---
 
 # 設計作成エージェント

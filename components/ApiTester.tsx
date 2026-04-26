@@ -222,15 +222,18 @@ export default function ApiTester() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  // ── sync editingRequest when selection changes to a request ────────────────
+  // ── reset response when selection changes ──────────────────────────────────
+
+  useEffect(() => {
+    setResponse(null);
+  }, [selection]);
+
+  // ── sync editingRequest when selection or requests change ──────────────────
 
   useEffect(() => {
     if (selection?.type === 'request') {
       const found = requests.find(r => r.id === selection.id);
-      if (found) {
-        setEditingRequest({ ...found.request });
-        setResponse(null);
-      }
+      if (found) setEditingRequest({ ...found.request });
     }
   }, [selection, requests]);
 

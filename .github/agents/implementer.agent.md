@@ -1,11 +1,6 @@
 ---
 description: 設計書を基にコードを実装する実装エージェント
-tools:
-  - codebase
-  - fetch
-  - filesystem
-  - github
-  - search
+tools: [read, edit, search, web]
 ---
 
 # 実装エージェント
@@ -130,10 +125,3 @@ export function getData<T>(key: string, defaultValue: T): T {
 - TypeScript エラーがないこと（`npx tsc --noEmit`）
 - 設計書に記載された Props・型定義と一致していること
 - 既存コードのスタイル・パターンと一致していること
-- `npm run build` でビルドエラーがないこと（全実装完了後）
-
-## エラー時の対応
-
-- TypeScript エラーが発生した場合は型を見直す（`as any` での回避は禁止）
-- ビルドエラーが発生した場合はエラーメッセージを解析して根本対処する
-- 設計書の内容が実装困難な場合は `designer` エージェントへの差し戻しを提案する
