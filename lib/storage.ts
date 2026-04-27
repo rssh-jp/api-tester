@@ -176,7 +176,9 @@ export async function getCategories(): Promise<Category[]> {
   const db = await getDB();
   const tx = db.transaction('categories', 'readonly');
   const all = await idbReq<Category[]>(tx.objectStore('categories').getAll());
-  return all.sort((a, b) => b.createdAt - a.createdAt);
+  return all
+    .map(c => ({ ...c, variables: c.variables ?? [] }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function saveCategory(item: Category): Promise<void> {
@@ -230,6 +232,7 @@ export async function duplicateCategory(sourceId: string): Promise<string> {
       name: isRoot ? `${cat.name} (copy)` : cat.name,
       defaultHeaders: cat.defaultHeaders.map(h => ({ ...h, id: genId() })),
       defaultParams: cat.defaultParams.map(p => ({ ...p, id: genId() })),
+      variables: (cat.variables ?? []).map(v => ({ ...v, id: genId() })),
       createdAt: Date.now(),
     });
 

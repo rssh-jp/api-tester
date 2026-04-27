@@ -53,6 +53,8 @@ export interface Category {
   defaultHeaders: KeyValuePair[];
   /** Default query params applied to all requests inside this category (and children) */
   defaultParams: KeyValuePair[];
+  /** Variables available for ${KEY} substitution in URL, headers, params, and body */
+  variables: KeyValuePair[];
   description?: string;
   createdAt: number;
 }

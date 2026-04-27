@@ -25,7 +25,7 @@ import {
   deleteCategory,
   duplicateCategory,
 } from '@/lib/storage';
-import { computeEffectiveValues, buildCategoryChain, mergeKeyValues } from '@/lib/inheritance';
+import { computeEffectiveValues, buildCategoryChain, mergeKeyValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { sendRequest } from '@/lib/sendRequest';
 import UrlBar from './UrlBar';
 import RequestPanel from './RequestPanel';
@@ -302,23 +302,31 @@ export default function ApiTester() {
         categories,
       );
 
+      const variables = computeEffectiveVariables(categoryId, categories);
+
+      // Apply variable substitution
+      const resolvedUrl = applyVariables(editingRequest.url, variables);
+      const resolvedHeaders = effectiveHeaders.map(h => ({ ...h, value: applyVariables(h.value, variables) }));
+      const resolvedParams = effectiveParams.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+      const resolvedBody = applyVariables(editingRequest.body, variables);
+
       // Build final URL with effective params
-      let baseUrl = editingRequest.url;
+      let baseUrl = resolvedUrl;
       try {
-        const urlStr = editingRequest.url.includes('://') ? editingRequest.url : `https://${editingRequest.url}`;
+        const urlStr = resolvedUrl.includes('://') ? resolvedUrl : `https://${resolvedUrl}`;
         const parsed = new URL(urlStr);
         parsed.search = '';
-        baseUrl = editingRequest.url.includes('://') ? parsed.toString() : parsed.toString().replace('https://', '');
-        if (!editingRequest.url.endsWith('/') && baseUrl.endsWith('/')) {
+        baseUrl = resolvedUrl.includes('://') ? parsed.toString() : parsed.toString().replace('https://', '');
+        if (!resolvedUrl.endsWith('/') && baseUrl.endsWith('/')) {
           baseUrl = baseUrl.slice(0, -1);
         }
       } catch {
-        baseUrl = editingRequest.url.split('?')[0];
+        baseUrl = resolvedUrl.split('?')[0];
       }
-      const finalUrl = buildUrlWithParams(baseUrl, effectiveParams);
+      const finalUrl = buildUrlWithParams(baseUrl, resolvedParams);
 
       const enabledHeaders: Record<string, string> = {};
-      effectiveHeaders.forEach(h => { enabledHeaders[h.key] = h.value; });
+      resolvedHeaders.forEach(h => { enabledHeaders[h.key] = h.value; });
       if (editingRequest.contentType && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(editingRequest.method)) {
         enabledHeaders['Content-Type'] = editingRequest.contentType;
       }
@@ -327,7 +335,7 @@ export default function ApiTester() {
         method: editingRequest.method,
         url: finalUrl,
         headers: enabledHeaders,
-        body: editingRequest.body || undefined,
+        body: resolvedBody || undefined,
       });
 
       const responseState: ResponseState = {
@@ -396,6 +404,7 @@ export default function ApiTester() {
       parentId,
       defaultHeaders: [],
       defaultParams: [],
+      variables: [],
       createdAt: Date.now(),
     };
     await saveCategory(cat);

@@ -121,7 +121,23 @@ export default function CategoryEditor({ category, categories, requests, onChang
             </section>
 
             <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Inheritance Preview</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Variables</h3>
+              <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
+                <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
+                <span>
+                  Use <code className="text-indigo-300 font-mono">${'{VARIABLE_NAME}'}</code> in URL, headers, params, and body. Child category values take precedence over parents.
+                </span>
+              </div>
+              <KeyValueTable
+                pairs={category.variables}
+                onChange={newPairs => onChange({ ...category, variables: newPairs })}
+                showEnabled={true}
+                keyPlaceholder="Variable name"
+                valuePlaceholder="Value"
+              />
+            </section>
+
+            <section>
               <InheritancePreview category={category} categories={categories} />
             </section>
           </div>
@@ -164,6 +180,7 @@ function InheritanceCard({
   name,
   defaultHeaders,
   defaultParams,
+  variables,
   depth,
   isCurrent,
   isRoot,
@@ -171,6 +188,7 @@ function InheritanceCard({
   name: string;
   defaultHeaders: KeyValuePair[];
   defaultParams: KeyValuePair[];
+  variables: KeyValuePair[];
   depth: number;
   isCurrent?: boolean;
   isRoot?: boolean;
@@ -191,7 +209,7 @@ function InheritanceCard({
           <span className="text-xs text-amber-600/70 ml-1">(highest priority)</span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <span className="text-xs text-slate-500 uppercase tracking-wide">Headers</span>
           <div className="mt-1">
@@ -202,6 +220,12 @@ function InheritanceCard({
           <span className="text-xs text-slate-500 uppercase tracking-wide">Params</span>
           <div className="mt-1">
             <KVSummary pairs={defaultParams} />
+          </div>
+        </div>
+        <div>
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Variables</span>
+          <div className="mt-1">
+            <KVSummary pairs={variables} />
           </div>
         </div>
       </div>
@@ -231,6 +255,7 @@ function InheritancePreview({
           name={`${category.name || 'Unnamed'} (this)`}
           defaultHeaders={category.defaultHeaders}
           defaultParams={category.defaultParams}
+          variables={category.variables}
           depth={0}
           isCurrent
         />
@@ -240,6 +265,7 @@ function InheritancePreview({
             name={cat.name}
             defaultHeaders={cat.defaultHeaders}
             defaultParams={cat.defaultParams}
+            variables={cat.variables ?? []}
             depth={i + 1}
             isRoot={i === ancestorChain.length - 1}
           />

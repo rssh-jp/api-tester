@@ -74,3 +74,41 @@ export function computeEffectiveValues(
     params: mergeKeyValues(requestParams, chain, 'defaultParams'),
   };
 }
+
+/**
+ * Resolve variables for a category chain.
+ *
+ * Priority (highest wins): immediate category → ... → root category
+ * (child overrides parent — opposite of headers/params)
+ */
+export function computeEffectiveVariables(
+  categoryId: string | null,
+  categories: Category[]
+): KeyValuePair[] {
+  if (categoryId === null) return [];
+  const chain = buildCategoryChain(categoryId, categories);
+  // chain = [immediate, ..., root]
+  // Iterate from root (last) to immediate (first) so immediate writes last and wins.
+  const result = new Map<string, KeyValuePair>();
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const cat = chain[i];
+    for (const kv of (cat.variables ?? [])) {
+      if (kv.key && kv.enabled) {
+        result.set(kv.key, kv);
+      }
+    }
+  }
+  return Array.from(result.values());
+}
+
+/**
+ * Replace ${KEY} placeholders in text with values from the variables array.
+ * Undefined variables are left as-is (silent pass-through).
+ */
+export function applyVariables(text: string, variables: KeyValuePair[]): string {
+  if (variables.length === 0) return text;
+  const map = new Map(variables.map(v => [v.key, v.value]));
+  return text.replace(/\$\{([^}]+)\}/g, (match, key) =>
+    map.has(key) ? map.get(key)! : match
+  );
+}
