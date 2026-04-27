@@ -26,6 +26,7 @@ import {
   duplicateCategory,
 } from '@/lib/storage';
 import { computeEffectiveValues, buildCategoryChain, mergeKeyValues } from '@/lib/inheritance';
+import { sendRequest } from '@/lib/sendRequest';
 import UrlBar from './UrlBar';
 import RequestPanel from './RequestPanel';
 import ResponsePanel from './ResponsePanel';
@@ -322,21 +323,15 @@ export default function ApiTester() {
         enabledHeaders['Content-Type'] = editingRequest.contentType;
       }
 
-      const res = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: editingRequest.method,
-          url: finalUrl,
-          headers: enabledHeaders,
-          body: editingRequest.body || undefined,
-        }),
+      const data = await sendRequest({
+        method: editingRequest.method,
+        url: finalUrl,
+        headers: enabledHeaders,
+        body: editingRequest.body || undefined,
       });
 
-      const data = await res.json();
-
       const responseState: ResponseState = {
-        status: data.status || res.status,
+        status: data.status || 0,
         statusText: data.statusText || '',
         headers: data.headers || {},
         body: data.body ?? '',

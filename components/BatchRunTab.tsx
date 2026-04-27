@@ -11,6 +11,7 @@ import {
   KeyValuePair,
 } from '@/lib/types';
 import { computeEffectiveValues } from '@/lib/inheritance';
+import { sendRequest } from '@/lib/sendRequest';
 
 interface BatchRunTabProps {
   category: Category;
@@ -181,22 +182,12 @@ export default function BatchRunTab({
           headersObj['Content-Type'] = req.request.contentType;
         }
 
-        const res = await fetch('/api/proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            method: req.request.method,
-            url: finalUrl,
-            headers: headersObj,
-            body: req.request.body || undefined,
-          }),
+        const data = await sendRequest({
+          method: req.request.method,
+          url: finalUrl,
+          headers: headersObj,
+          body: req.request.body || undefined,
         });
-        const data = await res.json() as {
-          status?: number;
-          statusText?: string;
-          responseTime?: number;
-          error?: string;
-        };
 
         if (data.error) {
           setResults(prev =>
