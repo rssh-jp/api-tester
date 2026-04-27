@@ -25,7 +25,7 @@ import {
   deleteCategory,
   duplicateCategory,
 } from '@/lib/storage';
-import { computeEffectiveValues } from '@/lib/inheritance';
+import { computeEffectiveValues, buildCategoryChain, mergeKeyValues } from '@/lib/inheritance';
 import UrlBar from './UrlBar';
 import RequestPanel from './RequestPanel';
 import ResponsePanel from './ResponsePanel';
@@ -250,6 +250,12 @@ export default function ApiTester() {
       ? categories.find(c => c.id === selection.id) ?? null
       : null;
 
+  // ── category-inherited values for display ──────────────────────────────────
+
+  const inheritedChain = buildCategoryChain(selectedRequest?.categoryId ?? null, categories);
+  const inheritedHeaders = mergeKeyValues([], inheritedChain, 'defaultHeaders');
+  const inheritedParams = mergeKeyValues([], inheritedChain, 'defaultParams');
+
   // ── URL / params sync ──────────────────────────────────────────────────────
 
   const handleUrlChange = useCallback((url: string) => {
@@ -341,6 +347,7 @@ export default function ApiTester() {
         redirected: data.redirected,
         finalUrl: data.finalUrl,
         isBinary: data.isBinary,
+        sentUrl: finalUrl,
       };
 
       setResponse(responseState);
@@ -607,6 +614,8 @@ export default function ApiTester() {
                   headers={editingRequest.headers}
                   body={editingRequest.body}
                   contentType={editingRequest.contentType}
+                  inheritedHeaders={inheritedHeaders}
+                  inheritedParams={inheritedParams}
                   onParamsChange={handleParamsChange}
                   onHeadersChange={h => setEditingRequest(prev => ({ ...prev, headers: h }))}
                   onBodyChange={b => setEditingRequest(prev => ({ ...prev, body: b }))}

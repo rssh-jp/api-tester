@@ -89,11 +89,19 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
   return (
     <div className="flex flex-col h-full bg-[#0d1117]">
       {/* Status bar */}
-      <div className="bg-[#0d1117] border-b border-slate-800 px-4 py-2.5 flex items-center gap-3">
-        <StatusBadge status={response.status} />
-        <span className="text-sm text-slate-400">{response.statusText}</span>
-        <span className="bg-slate-800/50 rounded px-1.5 py-0.5 text-xs text-slate-400 font-mono">{response.responseTime} ms</span>
-        <span className="bg-slate-800/50 rounded px-1.5 py-0.5 text-xs text-slate-400 font-mono">{formatSize(response.size)}</span>
+      <div className="bg-[#0d1117] border-b border-slate-800 px-4 py-2.5 flex flex-col gap-1.5">
+        <div className="flex items-center gap-3">
+          <StatusBadge status={response.status} />
+          <span className="text-sm text-slate-400">{response.statusText}</span>
+          <span className="bg-slate-800/50 rounded px-1.5 py-0.5 text-xs text-slate-400 font-mono">{response.responseTime} ms</span>
+          <span className="bg-slate-800/50 rounded px-1.5 py-0.5 text-xs text-slate-400 font-mono">{formatSize(response.size)}</span>
+        </div>
+        {response.sentUrl && (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] uppercase tracking-widest text-slate-600 font-medium flex-shrink-0">URL</span>
+            <span className="text-xs font-mono text-slate-500 truncate" title={response.sentUrl}>{response.sentUrl}</span>
+          </div>
+        )}
       </div>
 
       {/* Redirect notice */}

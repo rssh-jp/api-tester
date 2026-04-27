@@ -24,13 +24,9 @@ export function buildCategoryChain(
 /**
  * Merge key-value pairs applying category inheritance.
  *
- * Priority (highest wins): root category → ... → immediate category → request values
+ * Priority (highest wins): request values → immediate category → ... → root category
  *
- * The chain is [immediate, parent, ..., root], so we process it reversed
- * (root first), then let request values fill in anything not set by a category.
- *
- * In practice: root always wins. Request values are only used when no category
- * in the chain defines the same key.
+ * Categories provide defaults; request-level values override them.
  */
 export function mergeKeyValues(
   requestValues: KeyValuePair[],
@@ -38,24 +34,24 @@ export function mergeKeyValues(
   field: 'defaultHeaders' | 'defaultParams'
 ): KeyValuePair[] {
   // Map of lowercased key → final pair; later assignments overwrite earlier ones.
-  // Process order: request (weakest) → immediate category → ... → root (strongest).
   const result = new Map<string, KeyValuePair>();
 
-  // Weakest: request's own values
-  for (const kv of requestValues) {
-    if (kv.key && kv.enabled) {
-      result.set(kv.key.toLowerCase(), kv);
-    }
-  }
-
-  // Stronger: each level up the chain (root overwrites immediate)
-  // chain is [immediate, ..., root], so we process root last (highest priority)
+  // Weakest: root category. Stronger toward immediate.
+  // chain is [immediate, ..., root]; iterate from root (last index) to immediate (0),
+  // so immediate overwrites root.
   for (let i = categoryChain.length - 1; i >= 0; i--) {
     const cat = categoryChain[i];
     for (const kv of cat[field]) {
       if (kv.key && kv.enabled) {
         result.set(kv.key.toLowerCase(), { ...kv });
       }
+    }
+  }
+
+  // Strongest: request's own values override all category defaults.
+  for (const kv of requestValues) {
+    if (kv.key && kv.enabled) {
+      result.set(kv.key.toLowerCase(), kv);
     }
   }
 

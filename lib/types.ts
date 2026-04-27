@@ -32,6 +32,8 @@ export interface ResponseState {
   finalUrl?: string;
   /** true when the response body was binary and could not be decoded as text */
   isBinary?: boolean;
+  /** The complete URL that was actually sent (including all merged params) */
+  sentUrl?: string;
 }
 
 export interface HistoryItem {

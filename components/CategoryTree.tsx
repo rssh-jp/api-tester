@@ -13,6 +13,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { Category, SavedRequest, Selection } from '@/lib/types';
+import { getExpandedCategories, saveExpandedCategories } from '@/lib/storage';
 
 const METHOD_COLORS: Record<string, string> = {
   GET:     'bg-emerald-500/15 text-emerald-400',
@@ -183,14 +184,11 @@ function CategoryNode({
           isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={() => {
-          onSelect({ type: 'category', id: category.id });
-          onToggle(category.id);
-        }}
+        onClick={() => onSelect({ type: 'category', id: category.id })}
       >
-        {/* Chevron — stopPropagation so it doesn't also trigger the row's onSelect */}
+        {/* Chevron — only this button toggles expand/collapse */}
         <span
-          className="flex-shrink-0 text-slate-600"
+          className="flex-shrink-0 text-slate-600 hover:text-slate-300 transition-colors"
           onClick={e => {
             e.stopPropagation();
             onToggle(category.id);
@@ -340,16 +338,22 @@ export default function CategoryTree({
   onDeleteRequest,
   onMoveRequest: _onMoveRequest,
 }: CategoryTreeProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(() =>
-    getExpandedForSelection(selection, categories, requests),
-  );
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    const persisted = getExpandedCategories();
+    const fromSelection = getExpandedForSelection(selection, categories, requests);
+    return new Set([...persisted, ...fromSelection]);
+  });
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
   // Auto-expand ancestors when the selection is changed externally
   useEffect(() => {
     const toExpand = getExpandedForSelection(selection, categories, requests);
     if (toExpand.size > 0) {
-      setExpanded(prev => new Set([...prev, ...toExpand]));
+      setExpanded(prev => {
+        const next = new Set([...prev, ...toExpand]);
+        saveExpandedCategories(next);
+        return next;
+      });
     }
   }, [selection, categories, requests]);
 
@@ -358,6 +362,7 @@ export default function CategoryTree({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      saveExpandedCategories(next);
       return next;
     });
   }, []);

@@ -268,3 +268,23 @@ export async function duplicateCategory(sourceId: string): Promise<string> {
 
   return newRootId;
 }
+
+// ── Category expanded state (sync, localStorage) ───────────────────────────
+
+const EXPANDED_KEY = 'api-tester-expanded';
+
+export function getExpandedCategories(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveExpandedCategories(expanded: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(EXPANDED_KEY, JSON.stringify([...expanded]));
+}
