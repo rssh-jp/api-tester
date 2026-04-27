@@ -56,7 +56,7 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
       <div className="flex items-center justify-center h-full bg-[#0d1117] text-slate-400">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-slate-500">Sending request…</span>
+          <span className="text-sm text-slate-500">リクエストを送信中…</span>
         </div>
       </div>
     );
@@ -66,8 +66,8 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
     return (
       <div className="flex items-center justify-center h-full bg-[#0d1117] text-slate-500">
         <div className="flex flex-col items-center gap-2 text-center">
-          <p className="text-base font-medium text-slate-600">No response yet</p>
-          <p className="text-sm text-slate-700">Send a request to see the response here</p>
+          <p className="text-base font-medium text-slate-600">まだレスポンスがありません</p>
+          <p className="text-sm text-slate-700">リクエストを送信するとレスポンスがここに表示されます</p>
         </div>
       </div>
     );
@@ -113,7 +113,7 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
       {/* Redirect notice */}
       {response.redirected && response.finalUrl && (
         <div className="mx-4 mt-3 flex items-start gap-2 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2.5 text-xs">
-          <span className="text-amber-400 font-semibold flex-shrink-0">↪ Redirected</span>
+          <span className="text-amber-400 font-semibold flex-shrink-0">↪ リダイレクト</span>
           <span className="text-amber-300/70 font-mono break-all">{response.finalUrl}</span>
         </div>
       )}
@@ -121,7 +121,7 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
       {/* Binary / image response warning */}
       {response.isBinary && (
         <div className="mx-4 mt-3 flex items-start gap-2 bg-slate-500/8 border border-slate-500/20 rounded-lg px-3 py-2.5 text-xs">
-          <span className="text-slate-400 font-semibold flex-shrink-0">⚠ Binary response</span>
+          <span className="text-slate-400 font-semibold flex-shrink-0">⚠ バイナリレスポンス</span>
           <span className="text-slate-400 break-all">
             Content-Type: <span className="font-mono text-indigo-300">{response.contentType || 'unknown'}</span>
             {response.redirected && ' — リクエストがバイナリファイル（画像など）へリダイレクトされています。URLを確認してください。'}

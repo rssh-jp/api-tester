@@ -84,7 +84,7 @@ export default function KeyValueTable({
         className="flex items-center gap-1.5 mt-1 px-3 py-1.5 text-xs text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/5 rounded-lg w-fit"
       >
         <Plus size={12} />
-        Add row
+        行を追加
       </button>
     </div>
   );

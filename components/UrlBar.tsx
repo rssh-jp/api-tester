@@ -49,7 +49,7 @@ export default function UrlBar({ method, url, loading, onMethodChange, onUrlChan
         className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-lg shadow-indigo-600/20 hover:shadow-indigo-500/30 active:scale-95"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-        {loading ? 'Sending…' : 'Send'}
+        {loading ? '送信中…' : 'Send'}
       </button>
     </div>
   );

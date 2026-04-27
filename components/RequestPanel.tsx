@@ -81,7 +81,7 @@ function InheritedRows({
     <div className="mt-3 flex flex-col gap-1.5">
       <div className="flex items-center gap-1.5 px-1 mb-0.5">
         <Lock size={10} className="text-indigo-400/50" />
-        <span className="text-[10px] uppercase tracking-widest text-indigo-400/50 font-medium">From category</span>
+        <span className="text-[10px] uppercase tracking-widest text-indigo-400/50 font-medium">カテゴリーから継承</span>
       </div>
       {visible.map(pair => (
         <div key={pair.id} className="grid grid-cols-[1fr_1fr] gap-2">
@@ -190,7 +190,7 @@ export default function RequestPanel({
             <textarea
               value={body}
               onChange={e => onBodyChange(e.target.value)}
-              placeholder={contentType === 'application/json' ? '{\n  "key": "value"\n}' : 'Request body...'}
+              placeholder={contentType === 'application/json' ? '{\n  "key": "value"\n}' : 'リクエストボディ...'}
               className="min-h-[120px] bg-[#161b27] border border-slate-700/60 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 font-mono focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20 resize-none"
             />
           </div>

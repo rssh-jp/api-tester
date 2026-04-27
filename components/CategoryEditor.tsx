@@ -15,8 +15,8 @@ interface CategoryEditorProps {
   onSelectRequest: (id: string) => void;
 }
 
-type Tab = 'Settings' | 'Batch Run';
-const TABS: Tab[] = ['Settings', 'Batch Run'];
+type Tab = '設定' | 'Batch Run';
+const TABS: Tab[] = ['設定', 'Batch Run'];
 
 export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest }: CategoryEditorProps) {
   const [activeTab, setActiveTab] = useState<Tab>('Batch Run');
@@ -35,14 +35,14 @@ export default function CategoryEditor({ category, categories, requests, onChang
             type="text"
             value={category.name}
             onChange={e => onChange({ ...category, name: e.target.value })}
-            placeholder="Category name"
+            placeholder="カテゴリー名"
             className="flex-1 bg-transparent text-xl font-semibold text-slate-100 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5"
           />
         </div>
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-1 text-xs text-slate-600 mb-3 ml-6 flex-wrap">
-          <span>Root</span>
+          <span>ルート</span>
           {breadcrumb.map(cat => (
             <Fragment key={cat.id}>
               <span className="text-slate-700">›</span>
@@ -50,14 +50,14 @@ export default function CategoryEditor({ category, categories, requests, onChang
             </Fragment>
           ))}
           <span className="text-slate-700">›</span>
-          <span className="text-slate-400 font-medium">{category.name || 'Unnamed'}</span>
+          <span className="text-slate-400 font-medium">{category.name || '未命名'}</span>
         </div>
 
         {/* Description */}
         <textarea
           value={category.description ?? ''}
           onChange={e => onChange({ ...category, description: e.target.value })}
-          placeholder="Description (optional)"
+          placeholder="説明（任意）"
           rows={2}
           className="w-full bg-[#161b27] border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/20 resize-none"
         />
@@ -82,15 +82,14 @@ export default function CategoryEditor({ category, categories, requests, onChang
 
       {/* Tab content */}
       <div className={`flex-1 ${activeTab === 'Batch Run' ? 'overflow-hidden' : 'overflow-auto p-5'}`}>
-        {activeTab === 'Settings' && (
+        {activeTab === '設定' && (
           <div className="flex flex-col gap-8">
             <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Default Headers</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">デフォルト Headers</h3>
               <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
                 <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
                 <span>
-                  These headers are applied to all requests in this category. Higher-level categories
-                  override these values.
+                  このカテゴリーのすべてのリクエストに適用されます。上位カテゴリーの値が優先されます。
                 </span>
               </div>
               <KeyValueTable
@@ -103,12 +102,11 @@ export default function CategoryEditor({ category, categories, requests, onChang
             </section>
 
             <section>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Default Parameters</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">デフォルト Parameters</h3>
               <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
                 <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
                 <span>
-                  These query parameters are applied to all requests in this category. Higher-level
-                  categories override these values.
+                  このカテゴリーのすべてのリクエストに適用されます。上位カテゴリーの値が優先されます。
                 </span>
               </div>
               <KeyValueTable
@@ -125,7 +123,7 @@ export default function CategoryEditor({ category, categories, requests, onChang
               <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">
                 <Info size={14} className="mt-0.5 flex-shrink-0 text-indigo-400" />
                 <span>
-                  Use <code className="text-indigo-300 font-mono">${'{VARIABLE_NAME}'}</code> in URL, headers, params, and body. Child category values take precedence over parents.
+                  URL・ヘッダー・パラメータ・ボディで <code className="text-indigo-300 font-mono">${'{VARIABLE_NAME}'}</code> を使用できます。子カテゴリーの値が親より優先されます。
                 </span>
               </div>
               <KeyValueTable
@@ -161,7 +159,7 @@ export default function CategoryEditor({ category, categories, requests, onChang
 function KVSummary({ pairs }: { pairs: KeyValuePair[] }) {
   const active = pairs.filter(p => p.key && p.enabled);
   if (active.length === 0) {
-    return <span className="text-gray-500 italic text-xs">None</span>;
+    return <span className="text-gray-500 italic text-xs">なし</span>;
   }
   return (
     <div className="flex flex-col gap-0.5">
@@ -206,7 +204,7 @@ function InheritanceCard({
         <Folder size={14} className={folderColor} />
         <span className={`text-sm font-medium ${labelColor}`}>{name}</span>
         {isRoot && (
-          <span className="text-xs text-amber-600/70 ml-1">(highest priority)</span>
+          <span className="text-xs text-amber-600/70 ml-1">（最高優先度）</span>
         )}
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -247,7 +245,7 @@ function InheritancePreview({
     <div>
       <div className="flex items-start gap-2 mb-4 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5 text-xs text-amber-400/80">
         <GitBranch size={14} className="mt-0.5 flex-shrink-0" />
-        <span>⚠ Root category settings take highest priority and override all sub-categories.</span>
+        <span>⚠ ルートカテゴリーの設定が最高優先度を持ち、すべてのサブカテゴリーを上書きします。</span>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -272,7 +270,7 @@ function InheritancePreview({
         ))}
         {ancestorChain.length === 0 && (
           <p className="text-sm text-slate-600 italic mt-1 ml-1">
-            This is a root-level category with no parents.
+            これは親を持たないルートレベルのカテゴリーです。
           </p>
         )}
       </div>

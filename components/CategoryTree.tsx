@@ -92,7 +92,7 @@ function RequestRow({ request, depth, selection, onSelect, onDeleteRequest }: Re
       </span>
       <span className="flex-1 min-w-0 text-xs text-slate-400 truncate">{request.name}</span>
       <button
-        title="Delete request"
+        title="リクエストを削除"
         onClick={e => {
           e.stopPropagation();
           onDeleteRequest(request.id);
@@ -172,7 +172,7 @@ function CategoryNode({
 
   function handleDelete() {
     const hasChildren = childCategories.length > 0 || childRequests.length > 0;
-    if (hasChildren && !confirm(`Delete "${category.name}" and all its contents?`)) return;
+    if (hasChildren && !confirm(`"${category.name}" とそのすべての内容を削除しますか？`)) return;
     onDeleteCategory(category.id);
   }
 
@@ -228,7 +228,7 @@ function CategoryNode({
             {/* Action buttons — visible on group hover */}
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
               <button
-                title="Add subcategory"
+                title="サブカテゴリーを追加"
                 onClick={e => {
                   e.stopPropagation();
                   onAddCategory(category.id);
@@ -238,7 +238,7 @@ function CategoryNode({
                 <Plus size={12} />
               </button>
               <button
-                title="Add request"
+                title="リクエストを追加"
                 onClick={e => {
                   e.stopPropagation();
                   onAddRequest(category.id);
@@ -248,7 +248,7 @@ function CategoryNode({
                 <FileJson size={12} />
               </button>
               <button
-                title="Rename"
+                title="名前を変更"
                 onClick={e => {
                   e.stopPropagation();
                   setRenameValue(category.name);
@@ -259,7 +259,7 @@ function CategoryNode({
                 <Edit2 size={12} />
               </button>
               <button
-                title="Duplicate category"
+                title="カテゴリーを複製"
                 onClick={e => {
                   e.stopPropagation();
                   onDuplicateCategory(category.id);
@@ -269,7 +269,7 @@ function CategoryNode({
                 <Copy size={12} />
               </button>
               <button
-                title="Delete"
+                title="削除"
                 onClick={e => {
                   e.stopPropagation();
                   handleDelete();
@@ -380,14 +380,14 @@ export default function CategoryTree({
           className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md"
         >
           <Plus size={12} />
-          New Category
+          新しいカテゴリー
         </button>
         <button
           onClick={() => onAddRequest(null)}
           className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md"
         >
           <Plus size={12} />
-          New Request
+          新しいリクエスト
         </button>
       </div>
 
@@ -418,7 +418,7 @@ export default function CategoryTree({
         {uncategorizedRequests.length > 0 && (
           <div className={rootCategories.length > 0 ? 'mt-2' : ''}>
             <div className="text-[10px] uppercase tracking-widest text-slate-700 px-3 py-1.5 select-none">
-              Uncategorized
+              未分類
             </div>
             {uncategorizedRequests.map(req => (
               <RequestRow

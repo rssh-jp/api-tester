@@ -103,11 +103,11 @@ function HistoryList({
     return (
       <div className="flex flex-col h-full bg-[#0d1117]">
         <div className="px-3 py-2 border-b border-slate-800/80 flex items-center">
-          <span className="text-xs text-slate-600 flex-1">No history yet</span>
+          <span className="text-xs text-slate-600 flex-1">まだ履歴がありません</span>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
           <Clock size={28} className="text-slate-800 mb-3" />
-          <p className="text-xs text-slate-600">Sent requests will appear here.</p>
+          <p className="text-xs text-slate-600">送信したリクエストがここに表示されます。</p>
         </div>
       </div>
     );
@@ -116,12 +116,12 @@ function HistoryList({
   return (
     <div className="flex flex-col h-full bg-[#0d1117]">
       <div className="px-3 py-2 border-b border-slate-800/80 flex items-center flex-shrink-0">
-        <span className="text-xs text-slate-500 flex-1">{history.length} item(s)</span>
+        <span className="text-xs text-slate-500 flex-1">{history.length} 件</span>
         <button
           onClick={onClear}
           className="text-xs text-slate-600 hover:text-red-400 transition-colors"
         >
-          Clear all
+          すべてクリア
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -153,7 +153,7 @@ function HistoryList({
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400 font-mono truncate">{item.request.url || '(no url)'}</p>
+            <p className="text-xs text-slate-400 font-mono truncate">{item.request.url || '(URLなし)'}</p>
             <p className="text-[10px] text-slate-700 mt-0.5">
               {new Date(item.timestamp).toLocaleTimeString()}
             </p>
@@ -174,13 +174,13 @@ function WelcomeState({ onNewRequest }: { onNewRequest: () => void }) {
       </div>
       <h2 className="text-xl font-semibold text-slate-200 mb-2">API Tester</h2>
       <p className="text-sm text-slate-500 mb-8 max-w-xs leading-relaxed">
-        Organize your requests into categories, set default headers and parameters, and test any API.
+        リクエストをカテゴリーに整理し、デフォルトのヘッダーとパラメータを設定して、API をテストしましょう。
       </p>
       <div className="flex flex-col gap-2 text-left w-full max-w-xs">
         {[
-          ['1', 'Create a category in the left panel'],
-          ['2', 'Add a request inside it'],
-          ['3', 'Hit Send and inspect the response'],
+          ['1', '左パネルでカテゴリーを作成する'],
+          ['2', 'リクエストを追加する'],
+          ['3', 'Send を押してレスポンスを確認する'],
         ].map(([n, text]) => (
           <div key={n} className="flex items-center gap-3 text-sm text-slate-500">
             <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs font-bold flex-shrink-0">{n}</span>
@@ -192,7 +192,7 @@ function WelcomeState({ onNewRequest }: { onNewRequest: () => void }) {
         onClick={onNewRequest}
         className="mt-8 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-600/20"
       >
-        <Plus size={15} /> New Request
+        <Plus size={15} /> 新しいリクエスト
       </button>
     </div>
   );
@@ -537,7 +537,7 @@ export default function ApiTester() {
                       : 'text-slate-500 hover:text-slate-300'
                   }`}
                 >
-                  {tab}
+                  {tab === 'collections' ? 'コレクション' : '履歴'}
                 </button>
               ))}
             </div>
@@ -599,7 +599,7 @@ export default function ApiTester() {
                   type="text"
                   value={editingName}
                   onChange={e => setEditingName(e.target.value)}
-                  placeholder="Request name"
+                  placeholder="リクエスト名"
                   className="w-full bg-transparent text-lg font-semibold text-slate-100 placeholder-slate-600 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5 transition-colors"
                 />
               </div>

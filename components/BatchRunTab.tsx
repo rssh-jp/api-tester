@@ -39,10 +39,10 @@ function MethodBadge({ method }: { method: HttpMethod }) {
 }
 
 function StatusCell({ result }: { result: BatchRunResult }) {
-  if (result.status === 'running') return <span className="text-slate-400">Running</span>;
-  if (result.status === 'skipped') return <span className="text-slate-600">Skipped</span>;
+  if (result.status === 'running') return <span className="text-slate-400">実行中</span>;
+  if (result.status === 'skipped') return <span className="text-slate-600">スキップ</span>;
   if (result.status === 'pending') return <span className="text-slate-600">—</span>;
-  if (result.error) return <span className="text-red-400">Error</span>;
+  if (result.error) return <span className="text-red-400">エラー</span>;
   if (result.httpStatus != null) {
     return (
       <span className={result.status === 'success' ? 'text-emerald-400' : 'text-red-400'}>
@@ -246,7 +246,7 @@ export default function BatchRunTab({
             disabled={running}
             className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
           />
-          Include subcategories
+          サブカテゴリーを含める
         </label>
 
         <button
@@ -258,17 +258,17 @@ export default function BatchRunTab({
           {running ? (
             <>
               <Loader2 size={14} className="animate-spin" role="status" />
-              Running…
+              実行中…
             </>
           ) : hasRun ? (
             <>
               <RotateCcw size={14} />
-              Re-run
+              再実行
             </>
           ) : (
             <>
               <Play size={14} />
-              Run All
+              すべて実行
             </>
           )}
         </button>
@@ -279,7 +279,7 @@ export default function BatchRunTab({
         {targets.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-2">
             <Inbox size={28} />
-            <p className="text-sm">No requests in this category</p>
+            <p className="text-sm">このカテゴリーにリクエストがありません</p>
           </div>
         )}
 
@@ -334,9 +334,9 @@ export default function BatchRunTab({
 
         {allDone && (
           <div className="px-5 py-3 border-t border-slate-800 text-sm text-slate-400 flex gap-4">
-            <span className="text-emerald-400 font-semibold">{passed} passed</span>
-            <span className="text-red-400 font-semibold">{failed} failed</span>
-            <span className="text-slate-600">{passed + failed} total</span>
+            <span className="text-emerald-400 font-semibold">{passed} 成功</span>
+            <span className="text-red-400 font-semibold">{failed} 失敗</span>
+            <span className="text-slate-600">{passed + failed} 合計</span>
           </div>
         )}
       </div>
