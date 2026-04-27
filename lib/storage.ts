@@ -54,6 +54,7 @@ const OLD_CATEGORIES_KEY = 'api-tester-categories';
 const MIGRATED_KEY = 'api-tester-idb-migrated';
 
 async function migrateFromLocalStorage(db: IDBDatabase): Promise<void> {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return;
   if (localStorage.getItem(MIGRATED_KEY)) return;
 
@@ -109,6 +110,7 @@ async function getDB(): Promise<IDBDatabase> {
 // ── History ────────────────────────────────────────────────────────────────
 
 export async function getHistory(): Promise<HistoryItem[]> {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return [];
   const db = await getDB();
   const tx = db.transaction('history', 'readonly');
@@ -137,6 +139,7 @@ export async function clearHistory(): Promise<void> {
 // ── Saved Requests ─────────────────────────────────────────────────────────
 
 export async function getSaved(): Promise<SavedRequest[]> {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return [];
   const db = await getDB();
   const tx = db.transaction('saved', 'readonly');
@@ -172,6 +175,7 @@ export async function deleteSaved(id: string): Promise<void> {
 // ── Categories ─────────────────────────────────────────────────────────────
 
 export async function getCategories(): Promise<Category[]> {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return [];
   const db = await getDB();
   const tx = db.transaction('categories', 'readonly');
@@ -277,6 +281,7 @@ export async function duplicateCategory(sourceId: string): Promise<string> {
 const EXPANDED_KEY = 'api-tester-expanded';
 
 export function getExpandedCategories(): Set<string> {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return new Set();
   try {
     const raw = localStorage.getItem(EXPANDED_KEY);
@@ -288,6 +293,7 @@ export function getExpandedCategories(): Set<string> {
 }
 
 export function saveExpandedCategories(expanded: Set<string>): void {
+  /* c8 ignore next */
   if (typeof window === 'undefined') return;
   localStorage.setItem(EXPANDED_KEY, JSON.stringify([...expanded]));
 }

@@ -2,7 +2,7 @@
 
 ## 1. プロジェクト概要・目的
 
-Talend API Tester ライクな REST API テストツール。ブラウザ上で HTTP リクエストを組み立て・送信し、レスポンスを確認できる。カテゴリーツリーによるリクエスト管理、カテゴリー間のヘッダー/パラメータ継承、リクエスト履歴保存を提供する。サーバー DB は不使用で、全データを localStorage に永続化する。
+Talend API Tester ライクな REST API テストツール。ブラウザ上で HTTP リクエストを組み立て・送信し、レスポンスを確認できる。カテゴリーツリーによるリクエスト管理、カテゴリー間のヘッダー/パラメータ/変数継承、リクエスト履歴保存を提供する。サーバー DB は不使用で、全データをブラウザの **IndexedDB** に永続化する。
 
 ---
 
@@ -11,12 +11,12 @@ Talend API Tester ライクな REST API テストツール。ブラウザ上で 
 | 項目 | 内容 |
 |------|------|
 | フレームワーク | Next.js 16.2.4（App Router、Turbopack） |
-| UI | React + TypeScript |
+| UI | React 19 + TypeScript |
 | スタイリング | Tailwind CSS v4（`@import "tailwindcss"` 構文） |
 | ダークテーマ | ディープスペースダーク：`#080c14` ベース、`#0d1117` サーフェス、インジゴ-500 アクセント |
 | 状態管理 | React `useState` / `useEffect` のみ（Zustand 等のライブラリは不使用） |
-| ストレージ | `localStorage` のみ（サーバー DB なし） |
-| テスト | 未実装 |
+| ストレージ | IndexedDB（メインデータ）+ localStorage（カテゴリー展開状態のみ） |
+| テスト | Vitest + fake-indexeddb（`lib/` 配下の単体テスト） |
 
 ---
 
@@ -29,22 +29,34 @@ app/
   globals.css           Tailwind + ダークテーマ CSS 変数定義
   api/
     proxy/
-      route.ts          CORS 回避用プロキシ API Route
+      route.ts          CORS 回避用プロキシ API Route（Node の http/https モジュール使用）
 
 components/
   ApiTester.tsx         メイン状態コンテナ（左右ペイン分割）
-  CategoryTree.tsx      左ペイン：ネストカテゴリーツリー
-  CategoryEditor.tsx    右ペイン：カテゴリー編集（デフォルトヘッダー/パラメータ/継承プレビュー）
+  Sidebar.tsx           左ペイン：サイドバー全体（履歴・カテゴリーツリー統合）
+  CategoryTree.tsx      カテゴリーツリー（ネスト表示）
+  CategoryEditor.tsx    右ペイン：カテゴリー編集（デフォルトヘッダー/パラメータ/変数/継承プレビュー）
   UrlBar.tsx            URL 入力 + メソッド選択 + 送信ボタン
   RequestPanel.tsx      リクエスト編集パネル（タブ: Headers / Params / Body）
   ResponsePanel.tsx     レスポンス表示パネル（タブ: Body / Headers）
+  BatchRunTab.tsx       カテゴリー配下リクエスト一括実行タブ
   KeyValueTable.tsx     キーバリューペア編集テーブル
   JsonViewer.tsx        JSON Pretty/Raw 表示
+  HtmlViewer.tsx        HTML レスポンス表示（iframe サンドボックス）
+  XmlViewer.tsx         XML レスポンス表示（シンタックスハイライト）
+  ImageViewer.tsx       画像レスポンス表示
 
 lib/
   types.ts              全共通型定義
-  storage.ts            localStorage CRUD（カテゴリー、リクエスト、履歴）
-  inheritance.ts        カテゴリー継承マージロジック
+  storage.ts            IndexedDB CRUD（カテゴリー、リクエスト、履歴）+ localStorage 移行処理
+  inheritance.ts        カテゴリー継承マージロジック・変数展開
+  sendRequest.ts        HTTPリクエスト送信（プロキシ経由 or 直接 fetch）
+
+lib/__tests__/
+  setup.ts              Vitest セットアップ（fake-indexeddb/auto）
+  inheritance.test.ts   inheritance.ts 単体テスト
+  storage.test.ts       storage.ts 単体テスト
+  sendRequest.test.ts   sendRequest.ts 単体テスト
 ```
 
 - `page.tsx` と `layout.tsx` のみ Server Component。それ以外の全コンポーネントは `'use client'` を先頭に宣言する。
@@ -81,6 +93,16 @@ interface ResponseState {
   responseTime: number
   size: number
   error?: string
+  /** レスポンスの Content-Type（例: "application/json", "image/png"） */
+  contentType?: string
+  /** サーバーがリダイレクトした場合 true */
+  redirected?: boolean
+  /** リダイレクト後の最終 URL */
+  finalUrl?: string
+  /** バイナリレスポンスの場合 true（body は空文字） */
+  isBinary?: boolean
+  /** 実際に送信した完全な URL（マージ済みパラメータを含む） */
+  sentUrl?: string
 }
 
 interface HistoryItem {
@@ -93,9 +115,11 @@ interface HistoryItem {
 interface Category {
   id: string
   name: string
-  parentId: string | null   // null = ルートレベル
+  parentId: string | null        // null = ルートレベル
   defaultHeaders: KeyValuePair[]
   defaultParams: KeyValuePair[]
+  /** ${KEY} プレースホルダーで URL・ヘッダー・パラメータ・ボディに展開される変数 */
+  variables: KeyValuePair[]
   description?: string
   createdAt: number
 }
@@ -103,7 +127,7 @@ interface Category {
 interface SavedRequest {
   id: string
   name: string
-  categoryId: string | null  // null = カテゴリーなし
+  categoryId: string | null      // null = カテゴリーなし
   request: RequestState
   createdAt: number
 }
@@ -112,9 +136,23 @@ type Selection =
   | { type: 'request'; id: string }
   | { type: 'category'; id: string }
   | null
+
+type BatchRunStatus = 'pending' | 'running' | 'success' | 'failure' | 'skipped'
+
+interface BatchRunResult {
+  requestId: string
+  requestName: string
+  method: HttpMethod
+  url: string
+  status: BatchRunStatus
+  httpStatus?: number
+  httpStatusText?: string
+  responseTime?: number
+  error?: string
+}
 ```
 
-- ID 生成には必ず `genId()` を使用する（UUID）。
+- ID 生成には必ず `genId()` を使用する（`Date.now().toString(36) + Math.random().toString(36).slice(2)` による一意文字列）。
 
 ---
 
@@ -125,43 +163,75 @@ type Selection =
 | 関数 | 説明 |
 |------|------|
 | `buildCategoryChain(categoryId, categories)` | 指定カテゴリーから祖先へのチェーンを返す `[immediate, parent, ..., root]` |
-| `mergeKeyValues(requestValues, chain, field)` | チェーンとリクエスト値をマージして最終値を返す |
+| `mergeKeyValues(requestValues, chain, field)` | ヘッダー/パラメータをマージして最終値を返す |
 | `computeEffectiveValues(requestHeaders, requestParams, categoryId, categories)` | マージ済みヘッダー＋パラメータを返す |
+| `computeEffectiveVariables(categoryId, categories)` | 継承チェーン上の変数をマージして返す |
+| `applyVariables(text, variables)` | `${KEY}` プレースホルダーを変数値で置換する |
 
-### 優先度ルール
+### 優先度ルール（ヘッダー・パラメータ）
 
 ```
-リクエスト固有値（最弱）→ 直近カテゴリー → 中間カテゴリー → ルートカテゴリー（最強）
+リクエスト固有値（最強）→ 直近カテゴリー → 中間カテゴリー → ルートカテゴリー（最弱）
 ```
 
-- 同じキーが複数レベルで定義されている場合、**ルートカテゴリーの値が最優先**される。
+- **リクエスト自身の値が最優先**される。カテゴリーはデフォルト値を提供するだけで、リクエストが同じキーを持つ場合は上書きされる。
 - `enabled: false` のエントリはマージ結果から除外する。
+
+### 優先度ルール（変数）
+
+```
+直近カテゴリー（最強）→ 中間カテゴリー → ルートカテゴリー（最弱）
+```
+
+- **子カテゴリーの変数が親の同名変数を上書き**する（ヘッダー/パラメータとは逆）。
 
 ---
 
 ## 6. ストレージ設計（lib/storage.ts）
 
-### localStorage キー
+### IndexedDB（データベース: `api-tester-db` v1）
+
+| オブジェクトストア | 内容 |
+|------|------|
+| `history` | `HistoryItem[]`（timestamp インデックスあり、最新 50 件） |
+| `saved` | `SavedRequest[]` |
+| `categories` | `Category[]` |
+
+### localStorage（同期アクセス）
 
 | キー | 内容 |
 |------|------|
-| `api-tester-history` | `HistoryItem[]`（最新 50 件） |
-| `api-tester-saved` | `SavedRequest[]` |
-| `api-tester-categories` | `Category[]` |
+| `api-tester-expanded` | カテゴリーツリーの展開状態（`string[]`） |
+| `api-tester-idb-migrated` | localStorage → IndexedDB 移行済みフラグ |
 
 ### 重要な挙動
 
-- 履歴は最新 50 件のみ保持し、古いものは自動削除する。
+- 履歴は最新 50 件のみ保持し、古いものは自動削除する（`addToHistory` 内で制御）。
 - `deleteCategory()` はサブカテゴリーとそれに属するリクエストを**カスケード削除**する。
-- 旧フォーマットの `SavedRequest`（`categoryId` フィールドなし）は読み込み時に `categoryId: null` へ自動マイグレーションする。
+- `duplicateCategory()` はカテゴリーとサブカテゴリー・リクエストを再帰的にコピーする（ルートに `(copy)` サフィックス追加）。
+- 旧 localStorage データ（`api-tester-history`, `api-tester-saved`, `api-tester-categories`）は初回アクセス時に IndexedDB へ自動マイグレーションし、旧キーを削除する。
+- `getCategories()` 読み込み時に `variables` フィールドがない旧データを `variables: []` へ自動マイグレーションする。
 
 ---
 
-## 7. CORS プロキシの仕組み（app/api/proxy/route.ts）
+## 7. HTTP リクエスト送信（lib/sendRequest.ts）
+
+`sendRequest(params)` 関数がすべての HTTP リクエストを担当する。
+
+### 動作モード
+
+| モード | 条件 | 動作 |
+|--------|------|------|
+| プロキシモード（デフォルト） | `NEXT_PUBLIC_STATIC_EXPORT` が未設定 | `/api/proxy` に POST してサーバー経由でリクエスト |
+| 直接モード | `NEXT_PUBLIC_STATIC_EXPORT=true` | ブラウザから直接 `fetch`（CORS 制約あり） |
+
+---
+
+## 8. CORS プロキシの仕組み（app/api/proxy/route.ts）
 
 ブラウザの CORS 制約を回避するため、全ての外部 API リクエストを Next.js API Route 経由で転送する。
 
-### リクエスト（POST）
+### リクエスト（POST `/api/proxy`）
 
 ```json
 {
@@ -181,18 +251,22 @@ type Selection =
   "headers": { "content-type": "application/json" },
   "body": "...",
   "responseTime": 123,
-  "size": 456
+  "size": 456,
+  "contentType": "application/json",
+  "redirected": false,
+  "finalUrl": "https://example.com/api"
 }
 ```
 
 ### 実装上の注意点
 
-- `ReadableStream` の全チャンクを手動で結合し、チャンク転送エンコーディング（chunked transfer encoding）に対応する。
-- `cache: 'no-store'` を指定して Next.js のフェッチキャッシュを無効化する。
+- Node の `http` / `https` モジュールを直接使用して外部リクエストを送信する（Next.js の fetch キャッシュを完全に回避）。
+- 最大 10 回のリダイレクトを自動で追跡する（303 レスポンスはメソッドを GET に変換）。
+- レスポンスボディは `Buffer.concat(chunks)` で結合する。
 
 ---
 
-## 8. コーディング規約・注意事項
+## 9. コーディング規約・注意事項
 
 ### TypeScript
 
@@ -227,16 +301,18 @@ type Selection =
 
 ### ID 生成
 
-- ID の生成には必ず `genId()` を使用する（`crypto.randomUUID()` ラッパー）。
+- ID の生成には必ず `genId()` を使用する（`Date.now().toString(36) + Math.random().toString(36).slice(2)`）。
+- `crypto.randomUUID()` は使用しない。
 
 ---
 
-## 9. 新機能追加時のガイドライン
+## 10. 新機能追加時のガイドライン
 
 1. **型定義を先に更新する**: 新しいデータ構造は必ず `lib/types.ts` に追加してからコンポーネントを実装する。
-2. **ストレージ変更時はマイグレーションを考慮する**: 既存の localStorage データとの後方互換性を保つか、読み込み時のマイグレーション処理を追加する。
-3. **カテゴリー継承に影響する変更**: `lib/inheritance.ts` のロジックを変更する場合は、優先度ルール（ルートが最強）を維持する。
+2. **ストレージ変更時はマイグレーションを考慮する**: IndexedDB スキーマ変更はバージョン番号を上げて `onupgradeneeded` で処理する。既存フィールドの追加はデータ読み込み時のデフォルト補完で対応する。
+3. **カテゴリー継承に影響する変更**: `lib/inheritance.ts` のロジックを変更する場合は、ヘッダー/パラメータ（ルートが最弱）と変数（子が最強）の優先度の違いを維持する。
 4. **新コンポーネント**: `components/` に配置し、先頭に `'use client'` を宣言する。props の型はインターフェースとして同ファイル内か `lib/types.ts` に定義する。
-5. **外部 API へのリクエスト**: 直接 `fetch` せず、必ず `/api/proxy` 経由で送信して CORS を回避する。
-6. **localStorage 操作**: 直接 `localStorage` を操作せず、`lib/storage.ts` の関数を通じて行う。
+5. **外部 API へのリクエスト**: `lib/sendRequest.ts` の `sendRequest()` を使用する。直接 `fetch` せず、プロキシ経由（デフォルト）または `NEXT_PUBLIC_STATIC_EXPORT=true` の直接モードで送信する。
+6. **ストレージ操作**: 直接 `indexedDB` や `localStorage` を操作せず、`lib/storage.ts` のエクスポート関数を通じて行う。
 7. **ダークテーマ**: 新しい UI 要素にはダークテーマ対応の Tailwind クラスを使用し、明るい背景色は使用しない。
+8. **単体テスト**: `lib/` に新しいユーティリティ関数を追加した場合、対応するテストを `lib/__tests__/` に作成する。
