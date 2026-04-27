@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus } from 'lucide-react';
 import {
   HttpMethod,
@@ -211,6 +211,7 @@ export default function ApiTester() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [leftTab, setLeftTab] = useState<'collections' | 'history'>('collections');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [editingName, setEditingName] = useState('');
 
   // ── mount ──────────────────────────────────────────────────────────────────
 
@@ -238,6 +239,20 @@ export default function ApiTester() {
     if (selection?.type === 'request') {
       const found = requests.find(r => r.id === selection.id);
       if (found) setEditingRequest({ ...found.request });
+    }
+  }, [selection, requests]);
+
+  // ── sync editingName when selected request changes ─────────────────────────
+  const editingNameSyncRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selection?.type === 'request' ? selection.id : null;
+    if (id === editingNameSyncRef.current) return;
+    editingNameSyncRef.current = id;
+    if (id) {
+      const found = requests.find(r => r.id === id);
+      setEditingName(found?.name ?? '');
+    } else {
+      setEditingName('');
     }
   }, [selection, requests]);
 
@@ -292,6 +307,7 @@ export default function ApiTester() {
     if (!editingRequest.url.trim()) return;
     setLoading(true);
     setResponse(null);
+    let attemptedUrl = editingRequest.url;
 
     try {
       const categoryId = selectedRequest?.categoryId ?? null;
@@ -324,6 +340,7 @@ export default function ApiTester() {
         baseUrl = resolvedUrl.split('?')[0];
       }
       const finalUrl = buildUrlWithParams(baseUrl, resolvedParams);
+      attemptedUrl = finalUrl;
 
       const enabledHeaders: Record<string, string> = {};
       resolvedHeaders.forEach(h => { enabledHeaders[h.key] = h.value; });
@@ -379,6 +396,7 @@ export default function ApiTester() {
         responseTime: 0,
         size: 0,
         error: message,
+        sentUrl: attemptedUrl,
       });
     } finally {
       setLoading(false);
@@ -389,9 +407,9 @@ export default function ApiTester() {
 
   const handleSaveCurrentRequest = useCallback(async () => {
     if (!selectedRequest) return;
-    await updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
+    await updateSavedRequest(selectedRequest.id, { name: editingName, request: { ...editingRequest } });
     setRequests(await getSaved());
-  }, [selectedRequest, editingRequest]);
+  }, [selectedRequest, editingName, editingRequest]);
 
   // ── category handlers ──────────────────────────────────────────────────────
 
@@ -579,12 +597,8 @@ export default function ApiTester() {
               <div className="px-5 pt-4 pb-3 border-b border-slate-800/60 bg-[#0d1117] flex-shrink-0">
                 <input
                   type="text"
-                  value={selectedRequest?.name ?? ''}
-                  onChange={async e => {
-                    if (!selectedRequest) return;
-                    await updateSavedRequest(selectedRequest.id, { name: e.target.value });
-                    setRequests(await getSaved());
-                  }}
+                  value={editingName}
+                  onChange={e => setEditingName(e.target.value)}
                   placeholder="Request name"
                   className="w-full bg-transparent text-lg font-semibold text-slate-100 placeholder-slate-600 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5 transition-colors"
                 />

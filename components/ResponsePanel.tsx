@@ -76,8 +76,14 @@ export default function ResponsePanel({ response, loading }: ResponsePanelProps)
   if (response.error) {
     return (
       <div className="flex flex-col h-full bg-[#0d1117]">
-        <div className="p-4 border-b border-slate-800">
-          <span className="bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full">Error</span>
+        <div className="p-4 border-b border-slate-800 flex flex-col gap-1.5">
+          <span className="bg-red-500/15 text-red-400 border border-red-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full w-fit">Error</span>
+          {response.sentUrl && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[10px] uppercase tracking-widest text-slate-600 font-medium flex-shrink-0">URL</span>
+              <span className="text-xs font-mono text-slate-500 truncate" title={response.sentUrl}>{response.sentUrl}</span>
+            </div>
+          )}
         </div>
         <div className="bg-red-500/5 border border-red-500/20 rounded-xl mx-4 my-4 p-4 text-red-400 text-sm font-mono">{response.error}</div>
       </div>
