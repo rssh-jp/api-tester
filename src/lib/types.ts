@@ -79,6 +79,7 @@ export type BatchRunStatus = 'pending' | 'running' | 'success' | 'failure' | 'sk
 export interface BatchRunResult {
   requestId: string;
   requestName: string;
+  categoryName?: string;
   method: HttpMethod;
   url: string;
   status: BatchRunStatus;

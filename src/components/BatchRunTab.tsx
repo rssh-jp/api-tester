@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Play, RotateCcw, Loader2, Inbox, CheckCircle2, XCircle } from 'lucide-react';
 import {
   Category,
@@ -83,12 +83,26 @@ export default function BatchRunTab({
     setRunning(false);
   }
 
+  function getCategoryName(id: string | null): string {
+    const parts: string[] = [];
+    let current = categories.find(c => c.id === id);
+    while (current) {
+      parts.unshift(current.name);
+      current = current.parentId ? categories.find(c => c.id === current!.parentId) : undefined;
+    }
+    return parts.join(' / ');
+  }
+
   function collectRequests(categoryId: string, includeSubcats: boolean): SavedRequest[] {
-    const direct = requests.filter(r => r.categoryId === categoryId);
+    const direct = requests
+      .filter(r => r.categoryId === categoryId)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     if (!includeSubcats) return direct;
-    const children = categories.filter(c => c.parentId === categoryId);
+    const children = categories
+      .filter(c => c.parentId === categoryId)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     const childRequests = children.flatMap(c => collectRequests(c.id, true));
-    return [...direct, ...childRequests];
+    return [...childRequests, ...direct];
   }
 
   const targets = collectRequests(category.id, includeSubcategories);
@@ -99,6 +113,7 @@ export default function BatchRunTab({
       : targets.map(req => ({
           requestId: req.id,
           requestName: req.name,
+          categoryName: getCategoryName(req.categoryId),
           method: req.request.method,
           url: req.request.url,
           status: 'pending' as BatchRunStatus,
@@ -115,6 +130,7 @@ export default function BatchRunTab({
       currentTargets.map(req => ({
         requestId: req.id,
         requestName: req.name,
+        categoryName: getCategoryName(req.categoryId),
         method: req.request.method,
         url: req.request.url,
         status: 'pending' as BatchRunStatus,
@@ -276,38 +292,51 @@ export default function BatchRunTab({
               </tr>
             </thead>
             <tbody>
-              {displayResults.map(row => (
-                <tr
-                  key={row.requestId}
-                  onClick={() => onSelectRequest(row.requestId)}
-                  className={`border-b border-slate-800/50 cursor-pointer transition-colors ${
-                    row.status === 'success'
-                      ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                      : row.status === 'failure'
-                      ? 'bg-red-500/5 hover:bg-red-500/10'
-                      : 'hover:bg-slate-800/30'
-                  }`}
-                >
-                  <td className="px-4 py-2.5">
-                    <MethodBadge method={row.method} />
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-300 truncate max-w-[160px]">
-                    {row.requestName}
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-500 font-mono truncate max-w-[220px]">
-                    {row.url || '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <StatusCell result={row} />
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-slate-500 font-mono">
-                    {row.responseTime != null ? `${row.responseTime} ms` : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    <StatusIcon status={row.status} />
-                  </td>
-                </tr>
-              ))}
+              {displayResults.map((row, i) => {
+                const showCategoryHeader =
+                  row.categoryName !== undefined &&
+                  (i === 0 || row.categoryName !== displayResults[i - 1].categoryName);
+                return (
+                  <React.Fragment key={row.requestId}>
+                    {showCategoryHeader && (
+                      <tr className="border-b border-slate-800/30">
+                        <td colSpan={6} className="px-4 pt-3 pb-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                          {row.categoryName || '（カテゴリーなし）'}
+                        </td>
+                      </tr>
+                    )}
+                    <tr
+                      onClick={() => onSelectRequest(row.requestId)}
+                      className={`border-b border-slate-800/50 cursor-pointer transition-colors ${
+                        row.status === 'success'
+                          ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
+                          : row.status === 'failure'
+                          ? 'bg-red-500/5 hover:bg-red-500/10'
+                          : 'hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <td className="px-4 py-2.5">
+                        <MethodBadge method={row.method} />
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-300 truncate max-w-[160px]">
+                        {row.requestName}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-500 font-mono truncate max-w-[220px]">
+                        {row.url || '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <StatusCell result={row} />
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-slate-500 font-mono">
+                        {row.responseTime != null ? `${row.responseTime} ms` : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <StatusIcon status={row.status} />
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}
