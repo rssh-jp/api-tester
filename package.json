@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "migrate": "bash run_build.sh"
+    "migrate": "bash run_build.sh",
+    "build:extension": "bash scripts/build-extension.sh"
   },
   "dependencies": {
     "lucide-react": "^1.9.0",
