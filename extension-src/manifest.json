@@ -3,8 +3,11 @@
   "name": "API Tester",
   "version": "0.1.0",
   "description": "REST API testing tool",
-  "chrome_url_overrides": {
-    "newtab": "index.html"
+  "action": {
+    "default_title": "API Tester を開く"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "permissions": [],
   "host_permissions": ["<all_urls>"],

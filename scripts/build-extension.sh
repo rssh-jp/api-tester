@@ -78,8 +78,9 @@ with open(html_path, 'w', encoding='utf-8') as f:
 print(f"Extracted {counter[0]} inline script(s) to external file(s).")
 PYEOF
 
-echo "[7/7] Copying manifest.json ..."
+echo "[7/7] Copying manifest.json and background.js ..."
 cp extension-src/manifest.json extension/manifest.json
+cp extension-src/background.js extension/background.js
 
 if [ -d extension-src/icons ]; then
   cp -r extension-src/icons extension/icons
