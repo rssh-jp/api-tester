@@ -171,6 +171,7 @@ function RequestRow({
           </span>
           <button
             title="リクエストを削除"
+            onPointerDown={e => e.stopPropagation()}
             onClick={e => {
               e.stopPropagation();
               onDeleteRequest(request.id);
@@ -358,7 +359,7 @@ function CategoryNode({
             )}
 
             {/* Action buttons — visible on group hover */}
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0" onPointerDown={e => e.stopPropagation()}>
               <button
                 title="サブカテゴリーを追加"
                 onClick={e => {
