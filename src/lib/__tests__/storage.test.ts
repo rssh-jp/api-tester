@@ -331,4 +331,171 @@ describe('storage', () => {
       expect(localStorage.getItem('api-tester-history')).toBeNull();
     });
   });
+
+  // ── exportData / importData / validateExportData ──
+
+  describe('exportData', () => {
+    it('returns categories and requests from DB', async () => {
+      const cat = makeCategory('c1');
+      const req = makeSavedRequest('r1', 'c1');
+      await storage.saveCategory(cat);
+      await storage.saveRequest(req);
+
+      const data = await storage.exportData();
+
+      expect(data.version).toBe(1);
+      expect(typeof data.exportedAt).toBe('number');
+      expect(data.categories).toHaveLength(1);
+      expect(data.categories[0].id).toBe('c1');
+      expect(data.requests).toHaveLength(1);
+      expect(data.requests[0].id).toBe('r1');
+    });
+
+    it('returns empty arrays when DB is empty', async () => {
+      const data = await storage.exportData();
+      expect(data.categories).toEqual([]);
+      expect(data.requests).toEqual([]);
+    });
+  });
+
+  describe('importData', () => {
+    it('overwrites existing categories and requests', async () => {
+      await storage.saveCategory(makeCategory('old-cat'));
+      await storage.saveRequest(makeSavedRequest('old-req'));
+
+      const importPayload = storage.validateExportData({
+        version: 1,
+        exportedAt: Date.now(),
+        categories: [makeCategory('new-cat')],
+        requests: [makeSavedRequest('new-req', 'new-cat')],
+      });
+      await storage.importData(importPayload);
+
+      const cats = await storage.getCategories();
+      const reqs = await storage.getSaved();
+      expect(cats).toHaveLength(1);
+      expect(cats[0].id).toBe('new-cat');
+      expect(reqs).toHaveLength(1);
+      expect(reqs[0].id).toBe('new-req');
+    });
+
+    it('can import empty data (clears existing)', async () => {
+      await storage.saveCategory(makeCategory('c1'));
+      await storage.saveRequest(makeSavedRequest('r1'));
+
+      const importPayload = storage.validateExportData({
+        version: 1,
+        exportedAt: Date.now(),
+        categories: [],
+        requests: [],
+      });
+      await storage.importData(importPayload);
+
+      expect(await storage.getCategories()).toHaveLength(0);
+      expect(await storage.getSaved()).toHaveLength(0);
+    });
+
+    it('reads back imported data correctly', async () => {
+      const cat = makeCategory('c-import');
+      const req = makeSavedRequest('r-import', 'c-import');
+      const importPayload = storage.validateExportData({
+        version: 1,
+        exportedAt: 1000,
+        categories: [cat],
+        requests: [req],
+      });
+      await storage.importData(importPayload);
+
+      const cats = await storage.getCategories();
+      const reqs = await storage.getSaved();
+      expect(cats[0].name).toBe('cat-c-import');
+      expect(reqs[0].name).toBe('req-r-import');
+      expect(reqs[0].categoryId).toBe('c-import');
+    });
+  });
+
+  describe('validateExportData', () => {
+    it('passes a valid ExportData object', () => {
+      const raw = {
+        version: 1,
+        exportedAt: 1000,
+        categories: [makeCategory('c1')],
+        requests: [makeSavedRequest('r1')],
+      };
+      const result = storage.validateExportData(raw);
+      expect(result.version).toBe(1);
+      expect(result.categories).toHaveLength(1);
+      expect(result.requests).toHaveLength(1);
+    });
+
+    it('throws "version" error when version !== 1', () => {
+      expect(() =>
+        storage.validateExportData({ version: 2, exportedAt: 0, categories: [], requests: [] })
+      ).toThrow('version');
+    });
+
+    it('throws when categories is not an array', () => {
+      expect(() =>
+        storage.validateExportData({ version: 1, exportedAt: 0, categories: 'not-array', requests: [] })
+      ).toThrow();
+    });
+
+    it('throws when requests is not an array', () => {
+      expect(() =>
+        storage.validateExportData({ version: 1, exportedAt: 0, categories: [], requests: null })
+      ).toThrow();
+    });
+
+    it('throws when passed null', () => {
+      expect(() => storage.validateExportData(null)).toThrow();
+    });
+
+    it('throws when passed undefined', () => {
+      expect(() => storage.validateExportData(undefined)).toThrow();
+    });
+
+    it('strips unknown fields from the output', () => {
+      const raw = {
+        version: 1,
+        exportedAt: 0,
+        categories: [{ ...makeCategory('c1'), __proto__: { injected: true }, evilField: 'evil' }],
+        requests: [{ ...makeSavedRequest('r1'), evilField: 'evil' }],
+      };
+      const result = storage.validateExportData(raw);
+      expect((result.categories[0] as unknown as Record<string, unknown>)['evilField']).toBeUndefined();
+      expect((result.requests[0] as unknown as Record<string, unknown>)['evilField']).toBeUndefined();
+    });
+
+    it('falls back to "GET" for invalid HttpMethod in request', () => {
+      const raw = {
+        version: 1,
+        exportedAt: 0,
+        categories: [],
+        requests: [
+          {
+            ...makeSavedRequest('r1'),
+            request: { ...makeSavedRequest('r1').request, method: 'INVALID' },
+          },
+        ],
+      };
+      const result = storage.validateExportData(raw);
+      expect(result.requests[0].request.method).toBe('GET');
+    });
+
+    it('falls back to Date.now() when exportedAt is missing', () => {
+      const before = Date.now();
+      const result = storage.validateExportData({
+        version: 1,
+        categories: [],
+        requests: [],
+      });
+      expect(result.exportedAt).toBeGreaterThanOrEqual(before);
+    });
+
+    it('throws when categories contains null element', () => {
+      expect(() =>
+        storage.validateExportData({ version: 1, exportedAt: 0, categories: [null], requests: [] })
+      ).toThrow();
+    });
+  });
 });

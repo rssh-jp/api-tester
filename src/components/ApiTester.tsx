@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus, Download, Upload } from 'lucide-react';
 import {
   HttpMethod,
   KeyValuePair,
@@ -11,6 +11,7 @@ import {
   SavedRequest,
   Category,
   Selection,
+  ExportData,
 } from '@/lib/types';
 import {
   getHistory,
@@ -25,6 +26,9 @@ import {
   deleteCategory,
   duplicateCategory,
   updateCategory,
+  exportData,
+  importData,
+  validateExportData,
 } from '@/lib/storage';
 import { computeEffectiveValues, buildCategoryChain, mergeKeyValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
@@ -198,6 +202,9 @@ export default function ApiTester() {
   const [leftTab, setLeftTab] = useState<'collections' | 'history'>('collections');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [editingName, setEditingName] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   // ── mount ──────────────────────────────────────────────────────────────────
 
@@ -230,6 +237,7 @@ export default function ApiTester() {
 
   // ── sync editingName when selected request changes ─────────────────────────
   const editingNameSyncRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const id = selection?.type === 'request' ? selection.id : null;
     if (id === editingNameSyncRef.current) return;
@@ -469,6 +477,83 @@ export default function ApiTester() {
     setHistory([]);
   }, []);
 
+  // ── export / import handlers ───────────────────────────────────────────────
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const data = await exportData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `api-tester-export-${ts}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert('エクスポート中にエラーが発生しました。もう一度お試しください。');
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.size > 10 * 1024 * 1024) {
+      if (!window.confirm('ファイルサイズが大きいため、処理に時間がかかる場合があります。続けますか？')) return;
+    }
+
+    let parsed: unknown;
+    try {
+      const text = await file.text();
+      parsed = JSON.parse(text);
+    } catch {
+      window.alert('ファイルを読み込めませんでした。有効な JSON ファイルを選択してください。');
+      return;
+    }
+
+    let validated: ExportData;
+    try {
+      validated = validateExportData(parsed);
+    } catch {
+      window.alert('ファイル形式が正しくありません。api-tester でエクスポートしたファイルを使用してください。');
+      return;
+    }
+
+    const catCount = validated.categories.length;
+    const reqCount = validated.requests.length;
+
+    if (!window.confirm(
+      `カテゴリー ${catCount} 件、リクエスト ${reqCount} 件が含まれています。\n既存のすべてのデータが上書きされます。続けますか？`
+    )) return;
+
+    setIsImporting(true);
+    try {
+      await importData(validated);
+      const [updatedCats, updatedReqs] = await Promise.all([getCategories(), getSaved()]);
+      setCategories(updatedCats);
+      setRequests(updatedReqs);
+      setSelection(null);
+      setImportMessage(`インポートしました（カテゴリー ${catCount} 件、リクエスト ${reqCount} 件）`);
+      setTimeout(() => setImportMessage(null), 4000);
+    } catch {
+      window.alert('インポート中にエラーが発生しました。もう一度お試しください。');
+    } finally {
+      setIsImporting(false);
+    }
+  }, []);
+
   // ── render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -478,13 +563,46 @@ export default function ApiTester() {
         <span className="text-indigo-400 font-bold text-base tracking-tight flex items-center gap-2">
           <Zap size={16} className="text-indigo-400" /> API Tester
         </span>
-        <button
-          onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/60"
-        >
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting || isExporting}
+            title="設定をインポート"
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Upload size={16} />
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={isExporting || isImporting}
+            title="設定をエクスポート"
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download size={16} />
+          </button>
+          <button
+            onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800/60"
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+        </div>
       </header>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        aria-hidden="true"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {importMessage && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-5 py-2 text-xs text-emerald-400 flex-shrink-0">
+          {importMessage}
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left pane */}

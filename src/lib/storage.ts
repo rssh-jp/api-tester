@@ -1,4 +1,4 @@
-import { HistoryItem, SavedRequest, Category } from './types';
+import { HistoryItem, SavedRequest, Category, ExportData, HttpMethod, KeyValuePair, RequestState } from './types';
 
 function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -308,4 +308,111 @@ export function saveExpandedCategories(expanded: Set<string>): void {
   /* c8 ignore next */
   if (typeof window === 'undefined') return;
   localStorage.setItem(EXPANDED_KEY, JSON.stringify([...expanded]));
+}
+
+// ── Export / Import ────────────────────────────────────────────────────────
+
+function stripKeyValuePair(raw: unknown): KeyValuePair {
+  const kv = raw as Record<string, unknown>;
+  return {
+    id: typeof kv['id'] === 'string' ? kv['id'] : genId(),
+    key: typeof kv['key'] === 'string' ? kv['key'] : '',
+    value: typeof kv['value'] === 'string' ? kv['value'] : '',
+    enabled: kv['enabled'] !== false,
+  };
+}
+
+function stripCategory(raw: unknown): Category {
+  const c = raw as Record<string, unknown>;
+  return {
+    id: typeof c['id'] === 'string' ? c['id'] : genId(),
+    name: typeof c['name'] === 'string' ? c['name'] : '',
+    parentId: typeof c['parentId'] === 'string' ? c['parentId'] : null,
+    defaultHeaders: Array.isArray(c['defaultHeaders'])
+      ? (c['defaultHeaders'] as unknown[]).map(stripKeyValuePair) : [],
+    defaultParams: Array.isArray(c['defaultParams'])
+      ? (c['defaultParams'] as unknown[]).map(stripKeyValuePair) : [],
+    variables: Array.isArray(c['variables'])
+      ? (c['variables'] as unknown[]).map(stripKeyValuePair) : [],
+    description: typeof c['description'] === 'string' ? c['description'] : undefined,
+    createdAt: typeof c['createdAt'] === 'number' ? c['createdAt'] : Date.now(),
+  };
+}
+
+const VALID_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
+function stripRequestState(raw: unknown): RequestState {
+  const r = raw as Record<string, unknown>;
+  return {
+    method: VALID_METHODS.includes(r['method'] as HttpMethod) ? (r['method'] as HttpMethod) : 'GET',
+    url: typeof r['url'] === 'string' ? r['url'] : '',
+    params: Array.isArray(r['params'])
+      ? (r['params'] as unknown[]).map(stripKeyValuePair) : [],
+    headers: Array.isArray(r['headers'])
+      ? (r['headers'] as unknown[]).map(stripKeyValuePair) : [],
+    body: typeof r['body'] === 'string' ? r['body'] : '',
+    contentType: typeof r['contentType'] === 'string' ? r['contentType'] : 'application/json',
+  };
+}
+
+function stripSavedRequest(raw: unknown): SavedRequest {
+  const s = raw as Record<string, unknown>;
+  return {
+    id: typeof s['id'] === 'string' ? s['id'] : genId(),
+    name: typeof s['name'] === 'string' ? s['name'] : '',
+    categoryId: typeof s['categoryId'] === 'string' ? s['categoryId'] : null,
+    request: typeof s['request'] === 'object' && s['request'] !== null
+      ? stripRequestState(s['request'])
+      : { method: 'GET', url: '', params: [], headers: [], body: '', contentType: 'application/json' },
+    createdAt: typeof s['createdAt'] === 'number' ? s['createdAt'] : Date.now(),
+  };
+}
+
+export function validateExportData(raw: unknown): ExportData {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error('format');
+  }
+  const obj = raw as Record<string, unknown>;
+
+  if (obj['version'] !== 1) {
+    throw new Error('version');
+  }
+  if (!Array.isArray(obj['categories'])) {
+    throw new Error('format');
+  }
+  if (!Array.isArray(obj['requests'])) {
+    throw new Error('format');
+  }
+
+  return {
+    version: 1,
+    exportedAt: typeof obj['exportedAt'] === 'number' ? obj['exportedAt'] : Date.now(),
+    categories: (obj['categories'] as unknown[]).map(stripCategory),
+    requests: (obj['requests'] as unknown[]).map(stripSavedRequest),
+  };
+}
+
+export async function exportData(): Promise<ExportData> {
+  const [categories, requests] = await Promise.all([getCategories(), getSaved()]);
+  return {
+    version: 1,
+    exportedAt: Date.now(),
+    categories,
+    requests,
+  };
+}
+
+export async function importData(data: ExportData): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['categories', 'saved'], 'readwrite');
+  const catStore = tx.objectStore('categories');
+  const savedStore = tx.objectStore('saved');
+
+  catStore.clear();
+  savedStore.clear();
+
+  for (const cat of data.categories) catStore.put(cat);
+  for (const req of data.requests) savedStore.put(req);
+
+  await txDone(tx);
 }

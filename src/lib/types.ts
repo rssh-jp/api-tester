@@ -87,3 +87,12 @@ export interface BatchRunResult {
   responseTime?: number;
   error?: string;
 }
+
+export interface ExportData {
+  /** Schema version (currently fixed at 1) */
+  version: 1;
+  /** Export timestamp (Unix ms) */
+  exportedAt: number;
+  categories: Category[];
+  requests: SavedRequest[];
+}
