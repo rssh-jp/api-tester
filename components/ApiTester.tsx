@@ -42,17 +42,20 @@ function genId() {
 function buildUrlWithParams(baseUrl: string, params: KeyValuePair[]): string {
   const enabledParams = params.filter(p => p.key && p.enabled);
   if (enabledParams.length === 0) return baseUrl;
-  try {
-    const urlStr = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
-    const url = new URL(urlStr);
-    enabledParams.forEach(p => url.searchParams.set(p.key, p.value));
-    return baseUrl.includes('://') ? url.toString() : url.toString().replace('https://', '');
-  } catch {
-    const qs = enabledParams
-      .map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
-      .join('&');
-    return baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
+  // 変数プレースホルダー(${...})が含まれる場合は new URL() がそれをエンコードするため使わない
+  const hasPlaceholder = (s: string) => /\$\{[^}]+\}/.test(s);
+  if (!hasPlaceholder(baseUrl) && !enabledParams.some(p => hasPlaceholder(p.key) || hasPlaceholder(p.value))) {
+    try {
+      const urlStr = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
+      const url = new URL(urlStr);
+      enabledParams.forEach(p => url.searchParams.set(p.key, p.value));
+      return baseUrl.includes('://') ? url.toString() : url.toString().replace('https://', '');
+    } catch {
+      // fall through
+    }
   }
+  const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
+  return baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
 }
 
 function parseParamsFromUrl(url: string): KeyValuePair[] {
@@ -285,18 +288,8 @@ export default function ApiTester() {
 
   const handleParamsChange = useCallback((params: KeyValuePair[]) => {
     setEditingRequest(prev => {
-      let baseUrl = prev.url;
-      try {
-        const urlStr = prev.url.includes('://') ? prev.url : `https://${prev.url}`;
-        const parsed = new URL(urlStr);
-        parsed.search = '';
-        baseUrl = prev.url.includes('://') ? parsed.toString() : parsed.toString().replace('https://', '');
-        if (!prev.url.endsWith('/') && baseUrl.endsWith('/')) {
-          baseUrl = baseUrl.slice(0, -1);
-        }
-      } catch {
-        baseUrl = prev.url.split('?')[0];
-      }
+      // new URL() は変数プレースホルダー(${...})をエンコードするため split で取得
+      const baseUrl = prev.url.split('?')[0];
       return { ...prev, params, url: buildUrlWithParams(baseUrl, params) };
     });
   }, []);

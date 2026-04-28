@@ -10,7 +10,7 @@ import {
   HttpMethod,
   KeyValuePair,
 } from '@/lib/types';
-import { computeEffectiveValues } from '@/lib/inheritance';
+import { computeEffectiveValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { sendRequest } from '@/lib/sendRequest';
 
 interface BatchRunTabProps {
@@ -160,21 +160,31 @@ export default function BatchRunTab({
             categories
           );
 
-        let baseUrl = req.request.url;
+        const variables = computeEffectiveVariables(req.categoryId, categories);
+
+        const resolvedUrl = applyVariables(req.request.url, variables);
+        const resolvedHeaders = effectiveHeaders.map(h => ({ ...h, value: applyVariables(h.value, variables) }));
+        const resolvedParams = effectiveParams.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+        const resolvedBody = applyVariables(req.request.body, variables);
+
+        let baseUrl = resolvedUrl;
         try {
-          const urlStr = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
+          const urlStr = resolvedUrl.includes('://') ? resolvedUrl : `https://${resolvedUrl}`;
           const parsed = new URL(urlStr);
           parsed.search = '';
-          baseUrl = req.request.url.includes('://')
+          baseUrl = resolvedUrl.includes('://')
             ? parsed.toString()
             : parsed.toString().replace('https://', '');
+          if (!resolvedUrl.endsWith('/') && baseUrl.endsWith('/')) {
+            baseUrl = baseUrl.slice(0, -1);
+          }
         } catch {
-          baseUrl = req.request.url.split('?')[0];
+          baseUrl = resolvedUrl.split('?')[0];
         }
-        const finalUrl = buildUrlWithParams(baseUrl, effectiveParams);
+        const finalUrl = buildUrlWithParams(baseUrl, resolvedParams);
 
         const headersObj: Record<string, string> = {};
-        effectiveHeaders.forEach(h => { headersObj[h.key] = h.value; });
+        resolvedHeaders.forEach(h => { headersObj[h.key] = h.value; });
         if (
           req.request.contentType &&
           ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.request.method)
@@ -186,7 +196,7 @@ export default function BatchRunTab({
           method: req.request.method,
           url: finalUrl,
           headers: headersObj,
-          body: req.request.body || undefined,
+          body: resolvedBody || undefined,
         });
 
         if (data.error) {
