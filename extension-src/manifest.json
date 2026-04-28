@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "API Tester",
+  "version": "0.1.0",
+  "description": "REST API testing tool",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "permissions": [],
+  "host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
