@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as http from 'node:http';
 import * as https from 'node:https';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
+
+const BROWSER_DEFAULT_HEADERS: Record<string, string> = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+  'Accept-Encoding': 'gzip, deflate, br',
+};
+
+async function decompress(buffer: Buffer, encoding: string): Promise<Buffer> {
+  const enc = encoding.toLowerCase();
+  if (enc.includes('br')) return promisify(zlib.brotliDecompress)(buffer);
+  if (enc.includes('gzip')) return promisify(zlib.gunzip)(buffer);
+  if (enc.includes('deflate')) return promisify(zlib.inflate)(buffer);
+  return buffer;
+}
 
 function makeRequest(
   url: string,
@@ -97,10 +114,15 @@ export async function POST(req: NextRequest) {
     const bodyToSend: string | undefined =
       body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? body : undefined;
 
+    const mergedHeaders: Record<string, string> = {
+      ...BROWSER_DEFAULT_HEADERS,
+      ...(reqHeaders || {}),
+    };
+
     const { statusCode, statusText, headers, buffer, finalUrl } = await makeRequest(
       url,
       method,
-      reqHeaders || {},
+      mergedHeaders,
       bodyToSend
     );
 
@@ -112,15 +134,21 @@ export async function POST(req: NextRequest) {
         contentType
       );
 
-    const responseBody = isBinary ? '' : buffer.toString('utf-8');
+    const contentEncoding = headers['content-encoding'] ?? '';
+    const decodedBuffer = isBinary ? buffer : await decompress(buffer, contentEncoding);
+
+    const responseBody = isBinary ? '' : decodedBuffer.toString('utf-8');
     const size = isBinary
       ? parseInt(headers['content-length'] ?? '0', 10) || 0
-      : buffer.length;
+      : decodedBuffer.length;
+
+    const responseHeaders = { ...headers };
+    delete responseHeaders['content-encoding'];
 
     return NextResponse.json({
       status: statusCode,
       statusText,
-      headers,
+      headers: responseHeaders,
       body: responseBody,
       responseTime,
       size,
