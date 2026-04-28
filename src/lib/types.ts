@@ -97,3 +97,17 @@ export interface ExportData {
   categories: Category[];
   requests: SavedRequest[];
 }
+
+export type DragPhase = 'idle' | 'pressing' | 'dragging';
+
+export interface DragItem {
+  type: 'category' | 'request';
+  id: string;
+  name: string;
+  method?: string;
+}
+
+export type DropTarget =
+  | { type: 'category'; id: string }
+  | { type: 'root' }
+  | null;

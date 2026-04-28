@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronRight,
   ChevronDown,
@@ -12,8 +13,9 @@ import {
   Edit2,
   Copy,
 } from 'lucide-react';
-import { Category, SavedRequest, Selection } from '@/lib/types';
+import { Category, SavedRequest, Selection, DragItem, DragPhase, DropTarget } from '@/lib/types';
 import { getExpandedCategories, saveExpandedCategories } from '@/lib/storage';
+import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 
 const METHOD_COLORS: Record<string, string> = {
   GET:     'bg-emerald-500/15 text-emerald-400',
@@ -38,6 +40,7 @@ interface CategoryTreeProps {
   onDeleteRequest: (id: string) => void;
   onMoveRequest: (requestId: string, newCategoryId: string | null) => void;
   onRenameRequest: (id: string, newName: string) => void;
+  onMoveCategory: (categoryId: string, newParentId: string | null) => void;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -73,14 +76,21 @@ interface RequestRowProps {
   onRenameRequest: (id: string, newName: string) => void;
   renamingRequestId: string | null;
   setRenamingRequestId: (id: string | null) => void;
+  dragPhase: DragPhase;
+  isDragSource: (id: string) => boolean;
+  isPressingSource: (id: string) => boolean;
+  handlePointerDown: (e: React.PointerEvent, item: DragItem) => void;
+  wasJustDragging: () => boolean;
 }
 
 function RequestRow({
   request, depth, selection, onSelect, onDeleteRequest,
   onRenameRequest, renamingRequestId, setRenamingRequestId,
+  dragPhase, isDragSource, isPressingSource, handlePointerDown, wasJustDragging,
 }: RequestRowProps) {
   const isSelected = selection?.type === 'request' && selection.id === request.id;
   const isRenaming = renamingRequestId === request.id;
+  const isSource = (dragPhase === 'dragging' && isDragSource(request.id)) || (dragPhase === 'pressing' && isPressingSource(request.id));
 
   const [renameValue, setRenameValue] = useState(request.name);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -104,9 +114,21 @@ function RequestRow({
     <div
       className={`group flex items-center gap-1.5 py-1 pr-1 cursor-pointer transition-colors ${
         isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
-      }`}
+      } ${isSource && dragPhase === 'dragging' ? 'opacity-50' : ''} ${isSource && dragPhase === 'pressing' ? 'bg-indigo-500/5' : ''}`}
       style={{ paddingLeft: `${depth * 16 + 24}px` }}
-      onClick={() => !isRenaming && onSelect({ type: 'request', id: request.id })}
+      onClick={() => {
+        if (wasJustDragging()) return;
+        if (!isRenaming) onSelect({ type: 'request', id: request.id });
+      }}
+      onPointerDown={(e) => {
+        if (isRenaming) return;
+        handlePointerDown(e, {
+          type: 'request',
+          id: request.id,
+          name: request.name,
+          method: request.request.method,
+        });
+      }}
     >
       <FileJson size={13} className="flex-shrink-0 text-slate-600" />
 
@@ -185,6 +207,13 @@ interface CategoryNodeProps {
   onRenameRequest: (id: string, newName: string) => void;
   renamingRequestId: string | null;
   setRenamingRequestId: (id: string | null) => void;
+  dragPhase: DragPhase;
+  isDragSource: (id: string) => boolean;
+  isPressingSource: (id: string) => boolean;
+  isActiveDropTarget: (target: DropTarget) => boolean;
+  isValidTarget: (categoryId: string) => boolean;
+  handlePointerDown: (e: React.PointerEvent, item: DragItem) => void;
+  wasJustDragging: () => boolean;
 }
 
 function CategoryNode({
@@ -207,10 +236,21 @@ function CategoryNode({
   onRenameRequest,
   renamingRequestId,
   setRenamingRequestId,
+  dragPhase,
+  isDragSource,
+  isPressingSource,
+  isActiveDropTarget,
+  isValidTarget,
+  handlePointerDown,
+  wasJustDragging,
 }: CategoryNodeProps) {
   const isExpanded = expanded.has(category.id);
   const isSelected = selection?.type === 'category' && selection.id === category.id;
   const isRenaming = renamingId === category.id;
+  const isDragging = dragPhase === 'dragging';
+  const isSource = (isDragging && isDragSource(category.id)) || (dragPhase === 'pressing' && isPressingSource(category.id));
+  const isTarget = isDragging && isActiveDropTarget({ type: 'category', id: category.id });
+  const isValid = isValidTarget(category.id);
 
   const [renameValue, setRenameValue] = useState(category.name);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -245,18 +285,31 @@ function CategoryNode({
   }
 
   return (
-    <div>
+    <div
+      data-drop-zone-type="category"
+      data-drop-zone-id={category.id}
+    >
       {/* Row */}
       <div
         className={`group flex items-center gap-1 py-1 pr-1 cursor-pointer transition-colors ${
           isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
-        }`}
+        } ${isSource && dragPhase === 'dragging' ? 'opacity-50' : ''} ${isSource && dragPhase === 'pressing' ? 'bg-indigo-500/5' : ''} ${
+          isDragging && isTarget && isValid ? 'ring-1 ring-inset ring-indigo-500 bg-indigo-500/5' : ''
+        } ${isDragging && isTarget && !isValid ? 'cursor-not-allowed' : ''}`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={() => !isRenaming && onSelect({ type: 'category', id: category.id })}
+        onClick={() => {
+          if (wasJustDragging()) return;
+          if (!isRenaming) onSelect({ type: 'category', id: category.id });
+        }}
+        onPointerDown={(e) => {
+          if (isRenaming) return;
+          handlePointerDown(e, { type: 'category', id: category.id, name: category.name });
+        }}
       >
         {/* Chevron — only this button toggles expand/collapse */}
         <span
           className="flex-shrink-0 text-slate-600 hover:text-slate-300 transition-colors"
+          onPointerDown={e => e.stopPropagation()}
           onClick={e => {
             e.stopPropagation();
             onToggle(category.id);
@@ -387,6 +440,13 @@ function CategoryNode({
               onRenameRequest={onRenameRequest}
               renamingRequestId={renamingRequestId}
               setRenamingRequestId={setRenamingRequestId}
+              dragPhase={dragPhase}
+              isDragSource={isDragSource}
+              isPressingSource={isPressingSource}
+              isActiveDropTarget={isActiveDropTarget}
+              isValidTarget={isValidTarget}
+              handlePointerDown={handlePointerDown}
+              wasJustDragging={wasJustDragging}
             />
           ))}
           {childRequests.map(req => (
@@ -400,6 +460,11 @@ function CategoryNode({
               onRenameRequest={onRenameRequest}
               renamingRequestId={renamingRequestId}
               setRenamingRequestId={setRenamingRequestId}
+              dragPhase={dragPhase}
+              isDragSource={isDragSource}
+              isPressingSource={isPressingSource}
+              handlePointerDown={handlePointerDown}
+              wasJustDragging={wasJustDragging}
             />
           ))}
         </div>
@@ -421,8 +486,9 @@ export default function CategoryTree({
   onDuplicateCategory,
   onAddRequest,
   onDeleteRequest,
-  onMoveRequest: _onMoveRequest,
+  onMoveRequest,
   onRenameRequest,
+  onMoveCategory,
 }: CategoryTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     const persisted = getExpandedCategories();
@@ -431,6 +497,53 @@ export default function CategoryTree({
   });
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renamingRequestId, setRenamingRequestId] = useState<string | null>(null);
+
+  const expandCategory = useCallback((id: string) => {
+    setExpanded(prev => {
+      if (prev.has(id)) return prev;
+      const next = new Set([...prev, id]);
+      saveExpandedCategories(next);
+      return next;
+    });
+  }, []);
+
+  const {
+    phase,
+    dragItem,
+    dropTarget,
+    ghostPos,
+    handlePointerDown,
+    isDragSource,
+    isPressingSource,
+    isActiveDropTarget,
+    isValidTarget,
+    wasJustDragging,
+  } = useDragAndDrop({
+    categories,
+    onMoveCategory: async (categoryId, newParentId) => {
+      await onMoveCategory(categoryId, newParentId);
+    },
+    onMoveRequest: async (requestId, newCategoryId) => {
+      await onMoveRequest(requestId, newCategoryId);
+    },
+    onExpandCategory: expandCategory,
+  });
+
+  useEffect(() => {
+    if (phase === 'dragging') {
+      document.body.style.cursor = dropTarget ? 'grabbing' : 'not-allowed';
+      document.body.style.userSelect = 'none';
+    } else if (phase === 'pressing') {
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [phase, dropTarget]);
 
   // Auto-expand ancestors when the selection is changed externally
   useEffect(() => {
@@ -506,6 +619,13 @@ export default function CategoryTree({
             onRenameRequest={onRenameRequest}
             renamingRequestId={renamingRequestId}
             setRenamingRequestId={setRenamingRequestId}
+            dragPhase={phase}
+            isDragSource={isDragSource}
+            isPressingSource={isPressingSource}
+            isActiveDropTarget={isActiveDropTarget}
+            isValidTarget={isValidTarget}
+            handlePointerDown={handlePointerDown}
+            wasJustDragging={wasJustDragging}
           />
         ))}
 
@@ -525,6 +645,11 @@ export default function CategoryTree({
                 onRenameRequest={onRenameRequest}
                 renamingRequestId={renamingRequestId}
                 setRenamingRequestId={setRenamingRequestId}
+                dragPhase={phase}
+                isDragSource={isDragSource}
+                isPressingSource={isPressingSource}
+                handlePointerDown={handlePointerDown}
+                wasJustDragging={wasJustDragging}
               />
             ))}
           </div>
@@ -537,7 +662,44 @@ export default function CategoryTree({
             Use the buttons above to get started.
           </p>
         )}
+
+        {/* Root drop zone */}
+        <div
+          data-drop-zone-type="root"
+          className={`mx-2 my-2 p-2 border rounded text-xs text-center transition-colors select-none ${
+            phase === 'dragging'
+              ? isActiveDropTarget({ type: 'root' })
+                ? 'border-solid border-indigo-500 text-indigo-400 bg-indigo-500/5'
+                : 'border-dashed border-indigo-500/30 text-slate-600'
+              : 'border-dashed border-transparent text-transparent pointer-events-none'
+          }`}
+        >
+          ルートへ移動
+        </div>
       </div>
+
+      {/* Ghost capsule (portal to document.body) */}
+      {phase === 'dragging' && dragItem && typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            style={{
+              left: ghostPos.x + 14,
+              top: ghostPos.y + 14,
+            }}
+            className="fixed pointer-events-none z-[9999] flex items-center gap-1.5 bg-slate-800 border border-indigo-500/40 rounded-lg px-2.5 py-1 shadow-xl shadow-black/40"
+          >
+            {dragItem.type === 'category' ? (
+              <Folder size={12} className="flex-shrink-0 text-amber-500/70" />
+            ) : (
+              <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${METHOD_COLORS[dragItem.method ?? 'GET'] ?? ''}`}>
+                {dragItem.method}
+              </span>
+            )}
+            <span className="text-xs text-slate-200 max-w-[8rem] truncate">{dragItem.name}</span>
+          </div>,
+          document.body,
+        )
+      }
     </div>
   );
 }

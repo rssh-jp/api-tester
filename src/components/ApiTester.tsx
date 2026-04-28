@@ -464,6 +464,11 @@ export default function ApiTester() {
     setRequests(await getSaved());
   }, []);
 
+  const handleMoveCategory = useCallback(async (categoryId: string, newParentId: string | null) => {
+    await updateCategory(categoryId, { parentId: newParentId });
+    setCategories(await getCategories());
+  }, []);
+
   // ── history handlers ───────────────────────────────────────────────────────
 
   const handleLoadFromHistory = useCallback((req: RequestState) => {
@@ -640,6 +645,7 @@ export default function ApiTester() {
                   onDeleteRequest={handleDeleteRequest}
                   onMoveRequest={handleMoveRequest}
                   onRenameRequest={handleRenameRequest}
+                  onMoveCategory={handleMoveCategory}
                 />
               )}
               {leftTab === 'history' && (
