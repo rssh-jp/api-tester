@@ -27,6 +27,7 @@ export async function sendRequest(params: SendRequestParams): Promise<SendReques
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
+      cache: 'no-store',
     });
     return res.json();
   }
@@ -38,6 +39,7 @@ export async function sendRequest(params: SendRequestParams): Promise<SendReques
     headers: params.headers,
     body: canHaveBody && params.body ? params.body : undefined,
     redirect: 'follow',
+    cache: 'no-store',
   });
   const responseTime = Date.now() - startTime;
 
