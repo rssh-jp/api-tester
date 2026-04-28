@@ -129,9 +129,9 @@ describe('storage', () => {
     });
 
     it('normalizes missing categoryId to null', async () => {
-      const req = makeSavedRequest('r1') as Record<string, unknown>;
+      const req = makeSavedRequest('r1') as unknown as Record<string, unknown>;
       delete req.categoryId;
-      await storage.saveRequest(req as SavedRequest);
+      await storage.saveRequest(req as unknown as SavedRequest);
       const saved = await storage.getSaved();
       expect(saved[0].categoryId).toBeNull();
     });
@@ -179,9 +179,9 @@ describe('storage', () => {
     });
 
     it('normalizes missing variables to []', async () => {
-      const cat = makeCategory('c1') as Record<string, unknown>;
+      const cat = makeCategory('c1') as unknown as Record<string, unknown>;
       delete cat.variables;
-      await storage.saveCategory(cat as Category);
+      await storage.saveCategory(cat as unknown as Category);
       const cats = await storage.getCategories();
       expect(cats[0].variables).toEqual([]);
     });
@@ -193,6 +193,31 @@ describe('storage', () => {
       const cats = await storage.getCategories();
       expect(cats).toHaveLength(1);
       expect(cats[0].id).toBe('c1');
+    });
+  });
+
+  describe('updateCategory', () => {
+    it('updates the name of an existing category', async () => {
+      await storage.saveCategory({ ...makeCategory('c1'), name: 'original' });
+      await storage.updateCategory('c1', { name: 'renamed' });
+      const cats = await storage.getCategories();
+      expect(cats[0].name).toBe('renamed');
+    });
+
+    it('preserves other fields when updating name', async () => {
+      const cat = { ...makeCategory('c1'), name: 'original', description: 'desc' };
+      await storage.saveCategory(cat);
+      await storage.updateCategory('c1', { name: 'new-name' });
+      const cats = await storage.getCategories();
+      expect(cats[0].description).toBe('desc');
+      expect(cats[0].id).toBe('c1');
+    });
+
+    it('does nothing for unknown id', async () => {
+      await storage.saveCategory({ ...makeCategory('c1'), name: 'original' });
+      await storage.updateCategory('nonexistent', { name: 'noop' });
+      const cats = await storage.getCategories();
+      expect(cats[0].name).toBe('original');
     });
   });
 

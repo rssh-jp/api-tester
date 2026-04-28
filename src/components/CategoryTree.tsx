@@ -37,6 +37,7 @@ interface CategoryTreeProps {
   onAddRequest: (categoryId: string | null) => void;
   onDeleteRequest: (id: string) => void;
   onMoveRequest: (requestId: string, newCategoryId: string | null) => void;
+  onRenameRequest: (id: string, newName: string) => void;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -69,10 +70,35 @@ interface RequestRowProps {
   selection: Selection;
   onSelect: (sel: Selection) => void;
   onDeleteRequest: (id: string) => void;
+  onRenameRequest: (id: string, newName: string) => void;
+  renamingRequestId: string | null;
+  setRenamingRequestId: (id: string | null) => void;
 }
 
-function RequestRow({ request, depth, selection, onSelect, onDeleteRequest }: RequestRowProps) {
+function RequestRow({
+  request, depth, selection, onSelect, onDeleteRequest,
+  onRenameRequest, renamingRequestId, setRenamingRequestId,
+}: RequestRowProps) {
   const isSelected = selection?.type === 'request' && selection.id === request.id;
+  const isRenaming = renamingRequestId === request.id;
+
+  const [renameValue, setRenameValue] = useState(request.name);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  function commitRename() {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== request.name) {
+      onRenameRequest(request.id, trimmed);
+    }
+    setRenamingRequestId(null);
+  }
 
   return (
     <div
@@ -80,27 +106,59 @@ function RequestRow({ request, depth, selection, onSelect, onDeleteRequest }: Re
         isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
       }`}
       style={{ paddingLeft: `${depth * 16 + 24}px` }}
-      onClick={() => onSelect({ type: 'request', id: request.id })}
+      onClick={() => !isRenaming && onSelect({ type: 'request', id: request.id })}
     >
       <FileJson size={13} className="flex-shrink-0 text-slate-600" />
-      <span
-        className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-          METHOD_COLORS[request.request.method] ?? 'text-slate-400'
-        }`}
-      >
-        {request.request.method}
-      </span>
-      <span className="flex-1 min-w-0 text-xs text-slate-400 truncate">{request.name}</span>
-      <button
-        title="リクエストを削除"
-        onClick={e => {
-          e.stopPropagation();
-          onDeleteRequest(request.id);
-        }}
-        className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
-      >
-        <Trash2 size={12} />
-      </button>
+
+      {isRenaming ? (
+        <input
+          ref={renameInputRef}
+          value={renameValue}
+          onChange={e => setRenameValue(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commitRename();
+            if (e.key === 'Escape') {
+              setRenameValue(request.name);
+              setRenamingRequestId(null);
+            }
+          }}
+          onBlur={commitRename}
+          onClick={e => e.stopPropagation()}
+          aria-label="リクエスト名を変更"
+          className="flex-1 min-w-0 bg-slate-800 border border-indigo-500/60 text-slate-100 text-xs rounded px-1 py-0.5 focus:outline-none"
+        />
+      ) : (
+        <>
+          <span
+            className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+              METHOD_COLORS[request.request.method] ?? 'text-slate-400'
+            }`}
+          >
+            {request.request.method}
+          </span>
+          <span
+            className="flex-1 min-w-0 text-xs text-slate-400 truncate select-none"
+            onDoubleClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setRenameValue(request.name);
+              setRenamingRequestId(request.id);
+            }}
+          >
+            {request.name}
+          </span>
+          <button
+            title="リクエストを削除"
+            onClick={e => {
+              e.stopPropagation();
+              onDeleteRequest(request.id);
+            }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
+          >
+            <Trash2 size={12} />
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -124,6 +182,9 @@ interface CategoryNodeProps {
   onDeleteRequest: (id: string) => void;
   renamingId: string | null;
   setRenamingId: (id: string | null) => void;
+  onRenameRequest: (id: string, newName: string) => void;
+  renamingRequestId: string | null;
+  setRenamingRequestId: (id: string | null) => void;
 }
 
 function CategoryNode({
@@ -143,6 +204,9 @@ function CategoryNode({
   onDeleteRequest,
   renamingId,
   setRenamingId,
+  onRenameRequest,
+  renamingRequestId,
+  setRenamingRequestId,
 }: CategoryNodeProps) {
   const isExpanded = expanded.has(category.id);
   const isSelected = selection?.type === 'category' && selection.id === category.id;
@@ -151,8 +215,12 @@ function CategoryNode({
   const [renameValue, setRenameValue] = useState(category.name);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const childCategories = allCategories.filter(c => c.parentId === category.id);
-  const childRequests = allRequests.filter(r => r.categoryId === category.id);
+  const childCategories = allCategories
+    .filter(c => c.parentId === category.id)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  const childRequests = allRequests
+    .filter(r => r.categoryId === category.id)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const totalCount = childCategories.length + childRequests.length;
 
   useEffect(() => {
@@ -184,7 +252,7 @@ function CategoryNode({
           isSelected ? 'bg-indigo-500/10 hover:bg-indigo-500/15' : 'hover:bg-slate-800/40'
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={() => onSelect({ type: 'category', id: category.id })}
+        onClick={() => !isRenaming && onSelect({ type: 'category', id: category.id })}
       >
         {/* Chevron — only this button toggles expand/collapse */}
         <span
@@ -215,11 +283,22 @@ function CategoryNode({
             }}
             onBlur={commitRename}
             onClick={e => e.stopPropagation()}
+            aria-label="カテゴリー名を変更"
             className="flex-1 min-w-0 bg-slate-800 border border-indigo-500/60 text-slate-100 text-xs rounded px-1 py-0.5 focus:outline-none"
           />
         ) : (
           <>
-            <span className="flex-1 min-w-0 text-sm text-slate-300 truncate">{category.name}</span>
+            <span
+            className="flex-1 min-w-0 text-sm text-slate-300 truncate select-none"
+            onDoubleClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setRenameValue(category.name);
+              setRenamingId(category.id);
+            }}
+          >
+            {category.name}
+          </span>
 
             {totalCount > 0 && (
               <span className="text-[10px] text-slate-600 flex-shrink-0">({totalCount})</span>
@@ -305,6 +384,9 @@ function CategoryNode({
               onDeleteRequest={onDeleteRequest}
               renamingId={renamingId}
               setRenamingId={setRenamingId}
+              onRenameRequest={onRenameRequest}
+              renamingRequestId={renamingRequestId}
+              setRenamingRequestId={setRenamingRequestId}
             />
           ))}
           {childRequests.map(req => (
@@ -315,6 +397,9 @@ function CategoryNode({
               selection={selection}
               onSelect={onSelect}
               onDeleteRequest={onDeleteRequest}
+              onRenameRequest={onRenameRequest}
+              renamingRequestId={renamingRequestId}
+              setRenamingRequestId={setRenamingRequestId}
             />
           ))}
         </div>
@@ -337,6 +422,7 @@ export default function CategoryTree({
   onAddRequest,
   onDeleteRequest,
   onMoveRequest: _onMoveRequest,
+  onRenameRequest,
 }: CategoryTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     const persisted = getExpandedCategories();
@@ -344,6 +430,7 @@ export default function CategoryTree({
     return new Set([...persisted, ...fromSelection]);
   });
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingRequestId, setRenamingRequestId] = useState<string | null>(null);
 
   // Auto-expand ancestors when the selection is changed externally
   useEffect(() => {
@@ -367,8 +454,12 @@ export default function CategoryTree({
     });
   }, []);
 
-  const rootCategories = categories.filter(c => c.parentId === null);
-  const uncategorizedRequests = requests.filter(r => r.categoryId === null);
+  const rootCategories = categories
+    .filter(c => c.parentId === null)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  const uncategorizedRequests = requests
+    .filter(r => r.categoryId === null)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const isEmpty = categories.length === 0 && requests.length === 0;
 
   return (
@@ -412,6 +503,9 @@ export default function CategoryTree({
             onDeleteRequest={onDeleteRequest}
             renamingId={renamingId}
             setRenamingId={setRenamingId}
+            onRenameRequest={onRenameRequest}
+            renamingRequestId={renamingRequestId}
+            setRenamingRequestId={setRenamingRequestId}
           />
         ))}
 
@@ -428,6 +522,9 @@ export default function CategoryTree({
                 selection={selection}
                 onSelect={onSelect}
                 onDeleteRequest={onDeleteRequest}
+                onRenameRequest={onRenameRequest}
+                renamingRequestId={renamingRequestId}
+                setRenamingRequestId={setRenamingRequestId}
               />
             ))}
           </div>

@@ -24,6 +24,7 @@ import {
   saveCategory,
   deleteCategory,
   duplicateCategory,
+  updateCategory,
 } from '@/lib/storage';
 import { computeEffectiveValues, buildCategoryChain, mergeKeyValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
@@ -392,10 +393,7 @@ export default function ApiTester() {
   }, []);
 
   const handleRenameCategory = useCallback(async (id: string, newName: string) => {
-    const cats = await getCategories();
-    const cat = cats.find(c => c.id === id);
-    if (!cat) return;
-    await saveCategory({ ...cat, name: newName });
+    await updateCategory(id, { name: newName });
     setCategories(await getCategories());
   }, []);
 
@@ -447,6 +445,11 @@ export default function ApiTester() {
       setSelection(null);
     }
   }, [selection]);
+
+  const handleRenameRequest = useCallback(async (id: string, newName: string) => {
+    await updateSavedRequest(id, { name: newName });
+    setRequests(await getSaved());
+  }, []);
 
   const handleMoveRequest = useCallback(async (requestId: string, newCategoryId: string | null) => {
     await updateSavedRequest(requestId, { categoryId: newCategoryId });
@@ -518,6 +521,7 @@ export default function ApiTester() {
                   onAddRequest={handleAddRequest}
                   onDeleteRequest={handleDeleteRequest}
                   onMoveRequest={handleMoveRequest}
+                  onRenameRequest={handleRenameRequest}
                 />
               )}
               {leftTab === 'history' && (

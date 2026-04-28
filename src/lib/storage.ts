@@ -195,6 +195,15 @@ export async function saveCategory(item: Category): Promise<void> {
   await txDone(tx);
 }
 
+export async function updateCategory(id: string, updates: Partial<Category>): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('categories', 'readwrite');
+  const store = tx.objectStore('categories');
+  const existing = await idbReq<Category | undefined>(store.get(id));
+  if (existing) store.put({ ...existing, ...updates });
+  await txDone(tx);
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   const db = await getDB();
   const allCats = await getCategories();
