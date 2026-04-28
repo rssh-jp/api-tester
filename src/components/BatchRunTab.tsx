@@ -8,9 +8,9 @@ import {
   BatchRunStatus,
   BatchRunResult,
   HttpMethod,
-  KeyValuePair,
 } from '@/lib/types';
 import { computeEffectiveValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
+import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
 import { sendRequest } from '@/lib/sendRequest';
 
 interface BatchRunTabProps {
@@ -60,22 +60,6 @@ function StatusIcon({ status }: { status: BatchRunStatus }) {
     return <Loader2 size={14} className="animate-spin text-indigo-400" role="status" />;
   }
   return <span className="text-slate-700 text-xs">—</span>;
-}
-
-function buildUrlWithParams(baseUrl: string, params: KeyValuePair[]): string {
-  const enabledParams = params.filter(p => p.key && p.enabled);
-  if (enabledParams.length === 0) return baseUrl;
-  try {
-    const urlStr = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
-    const url = new URL(urlStr);
-    enabledParams.forEach(p => url.searchParams.set(p.key, p.value));
-    return baseUrl.includes('://') ? url.toString() : url.toString().replace('https://', '');
-  } catch {
-    const qs = enabledParams
-      .map(p => `${encodeURIComponent(p.key)}=${encodeURIComponent(p.value)}`)
-      .join('&');
-    return baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
-  }
 }
 
 export default function BatchRunTab({
@@ -167,21 +151,7 @@ export default function BatchRunTab({
         const resolvedParams = effectiveParams.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
         const resolvedBody = applyVariables(req.request.body, variables);
 
-        let baseUrl = resolvedUrl;
-        try {
-          const urlStr = resolvedUrl.includes('://') ? resolvedUrl : `https://${resolvedUrl}`;
-          const parsed = new URL(urlStr);
-          parsed.search = '';
-          baseUrl = resolvedUrl.includes('://')
-            ? parsed.toString()
-            : parsed.toString().replace('https://', '');
-          if (!resolvedUrl.endsWith('/') && baseUrl.endsWith('/')) {
-            baseUrl = baseUrl.slice(0, -1);
-          }
-        } catch {
-          baseUrl = resolvedUrl.split('?')[0];
-        }
-        const finalUrl = buildUrlWithParams(baseUrl, resolvedParams);
+        const finalUrl = buildUrlWithParams(extractBaseUrl(resolvedUrl), resolvedParams);
 
         const headersObj: Record<string, string> = {};
         resolvedHeaders.forEach(h => { headersObj[h.key] = h.value; });

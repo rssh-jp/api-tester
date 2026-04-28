@@ -26,6 +26,7 @@ import {
   duplicateCategory,
 } from '@/lib/storage';
 import { computeEffectiveValues, buildCategoryChain, mergeKeyValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
+import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
 import { sendRequest } from '@/lib/sendRequest';
 import UrlBar from './UrlBar';
 import RequestPanel from './RequestPanel';
@@ -37,25 +38,6 @@ import CategoryEditor from './CategoryEditor';
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
-function buildUrlWithParams(baseUrl: string, params: KeyValuePair[]): string {
-  const enabledParams = params.filter(p => p.key && p.enabled);
-  if (enabledParams.length === 0) return baseUrl;
-  // 変数プレースホルダー(${...})が含まれる場合は new URL() がそれをエンコードするため使わない
-  const hasPlaceholder = (s: string) => /\$\{[^}]+\}/.test(s);
-  if (!hasPlaceholder(baseUrl) && !enabledParams.some(p => hasPlaceholder(p.key) || hasPlaceholder(p.value))) {
-    try {
-      const urlStr = baseUrl.includes('://') ? baseUrl : `https://${baseUrl}`;
-      const url = new URL(urlStr);
-      enabledParams.forEach(p => url.searchParams.set(p.key, p.value));
-      return baseUrl.includes('://') ? url.toString() : url.toString().replace('https://', '');
-    } catch {
-      // fall through
-    }
-  }
-  const qs = enabledParams.map(p => `${p.key}=${p.value}`).join('&');
-  return baseUrl.includes('?') ? `${baseUrl}&${qs}` : `${baseUrl}?${qs}`;
 }
 
 function parseParamsFromUrl(url: string): KeyValuePair[] {
@@ -288,8 +270,7 @@ export default function ApiTester() {
 
   const handleParamsChange = useCallback((params: KeyValuePair[]) => {
     setEditingRequest(prev => {
-      // new URL() は変数プレースホルダー(${...})をエンコードするため split で取得
-      const baseUrl = prev.url.split('?')[0];
+      const baseUrl = extractBaseUrl(prev.url);
       return { ...prev, params, url: buildUrlWithParams(baseUrl, params) };
     });
   }, []);
@@ -320,19 +301,7 @@ export default function ApiTester() {
       const resolvedBody = applyVariables(editingRequest.body, variables);
 
       // Build final URL with effective params
-      let baseUrl = resolvedUrl;
-      try {
-        const urlStr = resolvedUrl.includes('://') ? resolvedUrl : `https://${resolvedUrl}`;
-        const parsed = new URL(urlStr);
-        parsed.search = '';
-        baseUrl = resolvedUrl.includes('://') ? parsed.toString() : parsed.toString().replace('https://', '');
-        if (!resolvedUrl.endsWith('/') && baseUrl.endsWith('/')) {
-          baseUrl = baseUrl.slice(0, -1);
-        }
-      } catch {
-        baseUrl = resolvedUrl.split('?')[0];
-      }
-      const finalUrl = buildUrlWithParams(baseUrl, resolvedParams);
+      const finalUrl = buildUrlWithParams(extractBaseUrl(resolvedUrl), resolvedParams);
       attemptedUrl = finalUrl;
 
       const enabledHeaders: Record<string, string> = {};

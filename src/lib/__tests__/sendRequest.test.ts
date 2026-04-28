@@ -121,4 +121,101 @@ describe('sendRequest (static mode - STATIC=true)', () => {
       expect.objectContaining({ body: undefined })
     );
   });
+
+  it('handles response with no content-type header (triggers ?? branch)', async () => {
+    const mock = makeMockResponse({ contentType: null });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mock));
+
+    const { sendRequest } = await import('../sendRequest');
+    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+
+    expect(result.contentType).toBe('');
+    expect(result.isBinary).toBe(false);
+    expect(result.status).toBe(200);
+  });
+
+  it('sends body for PUT method', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeMockResponse());
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { sendRequest } = await import('../sendRequest');
+    await sendRequest({ method: 'PUT', url: 'http://example.com', headers: {}, body: '{"data":"update"}' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://example.com',
+      expect.objectContaining({ body: '{"data":"update"}' })
+    );
+  });
+
+  it('sends body for PATCH method', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeMockResponse());
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { sendRequest } = await import('../sendRequest');
+    await sendRequest({ method: 'PATCH', url: 'http://example.com', headers: {}, body: '{"field":"value"}' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://example.com',
+      expect.objectContaining({ body: '{"field":"value"}' })
+    );
+  });
+
+  it('sends body for DELETE method', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeMockResponse());
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { sendRequest } = await import('../sendRequest');
+    await sendRequest({ method: 'DELETE', url: 'http://example.com', headers: {}, body: '{"id":"1"}' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://example.com',
+      expect.objectContaining({ body: '{"id":"1"}' })
+    );
+  });
+
+  it('does not send body for HEAD method', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeMockResponse());
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { sendRequest } = await import('../sendRequest');
+    await sendRequest({ method: 'HEAD', url: 'http://example.com', headers: {}, body: 'ignored' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://example.com',
+      expect.objectContaining({ body: undefined })
+    );
+  });
+
+  it('handles binary audio/* response', async () => {
+    const mock = makeMockResponse({ contentType: 'audio/mpeg', blobContent: 'x'.repeat(50) });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mock));
+
+    const { sendRequest } = await import('../sendRequest');
+    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+
+    expect(result.isBinary).toBe(true);
+    expect(result.size).toBe(50);
+  });
+
+  it('handles binary application/pdf response', async () => {
+    const mock = makeMockResponse({ contentType: 'application/pdf', blobContent: 'x'.repeat(200) });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mock));
+
+    const { sendRequest } = await import('../sendRequest');
+    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+
+    expect(result.isBinary).toBe(true);
+    expect(result.size).toBe(200);
+  });
+
+  it('handles binary application/octet-stream response', async () => {
+    const mock = makeMockResponse({ contentType: 'application/octet-stream', blobContent: 'x'.repeat(75) });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mock));
+
+    const { sendRequest } = await import('../sendRequest');
+    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+
+    expect(result.isBinary).toBe(true);
+    expect(result.size).toBe(75);
+  });
 });

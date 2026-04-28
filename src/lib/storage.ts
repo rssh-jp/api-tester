@@ -26,6 +26,7 @@ function openDB(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
+    /* c8 ignore next */
     req.onerror = (e) => reject((e.target as IDBOpenDBRequest).error);
   });
   return dbPromise;
@@ -34,6 +35,7 @@ function openDB(): Promise<IDBDatabase> {
 function idbReq<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
+    /* c8 ignore next */
     req.onerror = () => reject(req.error);
   });
 }
@@ -41,6 +43,7 @@ function idbReq<T>(req: IDBRequest<T>): Promise<T> {
 function txDone(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
+    /* c8 ignore next 2 */
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });

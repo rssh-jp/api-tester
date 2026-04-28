@@ -111,6 +111,23 @@ describe('mergeKeyValues', () => {
     expect(result).toHaveLength(1);
     expect(result[0].value).toBe('req-token');
   });
+
+  it('skips request entry with empty key (falsy key short-circuits &&)', () => {
+    const result = mergeKeyValues(
+      [{ id: 'x', key: '', value: 'val', enabled: true }],
+      [],
+      'defaultHeaders'
+    );
+    expect(result).toHaveLength(0);
+  });
+
+  it('skips category entry with empty key (falsy key short-circuits &&)', () => {
+    const root = makeCategory('root', null, {
+      defaultHeaders: [{ id: 'x', key: '', value: 'val', enabled: true }],
+    });
+    const result = mergeKeyValues([], [root], 'defaultHeaders');
+    expect(result).toHaveLength(0);
+  });
 });
 
 describe('computeEffectiveValues', () => {
@@ -177,6 +194,13 @@ describe('computeEffectiveVariables', () => {
     expect(() => computeEffectiveVariables('cat', [cat])).not.toThrow();
     expect(computeEffectiveVariables('cat', [cat])).toEqual([]);
   });
+
+  it('skips variable with empty key (falsy key short-circuits &&)', () => {
+    const cat = makeCategory('cat', null, {
+      variables: [{ id: 'x', key: '', value: 'val', enabled: true }],
+    });
+    expect(computeEffectiveVariables('cat', [cat])).toHaveLength(0);
+  });
 });
 
 describe('applyVariables', () => {
@@ -195,5 +219,78 @@ describe('applyVariables', () => {
   it('replaces multiple variables in one string', () => {
     const result = applyVariables('${A} + ${B}', [kv('A', 'x'), kv('B', 'y')]);
     expect(result).toBe('x + y');
+  });
+});
+
+describe('variable + params integration', () => {
+  it('computeEffectiveValues and computeEffectiveVariables work together with applyVariables', () => {
+    const cat = makeCategory('cat', null, {
+      defaultParams: [kv('env', '${ENV}'), kv('version', 'v1')],
+      variables: [kv('ENV', 'production'), kv('HOST', 'api.example.com')],
+    });
+
+    const { params } = computeEffectiveValues([], [], 'cat', [cat]);
+    const variables = computeEffectiveVariables('cat', [cat]);
+
+    // パラメータが取得できている
+    expect(params).toHaveLength(2);
+
+    // 変数展開後にパラメータ値が正しく解決される
+    const resolvedParams = params.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+    const envParam = resolvedParams.find(p => p.key === 'env');
+    expect(envParam?.value).toBe('production');
+    const versionParam = resolvedParams.find(p => p.key === 'version');
+    expect(versionParam?.value).toBe('v1');
+  });
+
+  it('URL with placeholder + category params all get variables applied', () => {
+    const cat = makeCategory('cat', null, {
+      defaultParams: [kv('token', '${API_TOKEN}')],
+      variables: [kv('HOST', 'api.example.com'), kv('API_TOKEN', 'secret-123')],
+    });
+
+    const url = 'https://${HOST}/endpoint';
+    const { params } = computeEffectiveValues([], [], 'cat', [cat]);
+    const variables = computeEffectiveVariables('cat', [cat]);
+
+    const resolvedUrl = applyVariables(url, variables);
+    const resolvedParams = params.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+
+    expect(resolvedUrl).toBe('https://api.example.com/endpoint');
+    expect(resolvedParams[0].value).toBe('secret-123');
+  });
+
+  it('request params override category params and both get variable expansion', () => {
+    const cat = makeCategory('cat', null, {
+      defaultParams: [kv('page', '${DEFAULT_PAGE}'), kv('limit', '10')],
+      variables: [kv('DEFAULT_PAGE', '1')],
+    });
+
+    // request overrides 'page' with own value
+    const { params } = computeEffectiveValues([], [kv('page', '5')], 'cat', [cat]);
+    const variables = computeEffectiveVariables('cat', [cat]);
+
+    const resolvedParams = params.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+    const pageParam = resolvedParams.find(p => p.key === 'page');
+    // リクエスト自身の値が優先
+    expect(pageParam?.value).toBe('5');
+    const limitParam = resolvedParams.find(p => p.key === 'limit');
+    expect(limitParam?.value).toBe('10');
+  });
+
+  it('child category variable overrides parent, applied to inherited params', () => {
+    const parent = makeCategory('parent', null, {
+      defaultParams: [kv('host', '${API_HOST}')],
+      variables: [kv('API_HOST', 'parent.example.com')],
+    });
+    const child = makeCategory('child', 'parent', {
+      variables: [kv('API_HOST', 'child.example.com')],
+    });
+
+    const { params } = computeEffectiveValues([], [], 'child', [parent, child]);
+    const variables = computeEffectiveVariables('child', [parent, child]);
+
+    const resolvedParams = params.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+    expect(resolvedParams[0].value).toBe('child.example.com');
   });
 });

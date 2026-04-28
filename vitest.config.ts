@@ -4,11 +4,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./lib/__tests__/setup.ts'],
+    setupFiles: ['./src/lib/__tests__/setup.ts'],
     coverage: {
       provider: 'v8',
-      include: ['lib/**/*.ts'],
-      exclude: ['lib/__tests__/**'],
+      include: ['src/lib/**/*.ts'],
+      exclude: ['src/lib/__tests__/**'],
       all: true,
       thresholds: {
         lines: 100,
