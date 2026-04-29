@@ -1,39 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# api-tester
 
-## Getting Started
+Talend API Tester ライクなブラウザ上で動く REST API テストツール。
 
-First, run the development server:
+## 機能
+
+- HTTP リクエストの組み立て・送信・レスポンス確認（GET / POST / PUT / DELETE / PATCH / HEAD / OPTIONS）
+- カテゴリーツリーによるリクエスト管理（ネスト・ドラッグドロップ移動対応）
+- カテゴリー間のヘッダー / パラメータ / 変数の継承
+- `${KEY}` プレースホルダーを使った変数展開（URL・ヘッダー・パラメータ・ボディ）
+- リクエスト履歴の自動保存（最新 50 件）
+- カテゴリー配下リクエストの一括実行（Batch Run）
+- レスポンスの Content-Type 別表示（JSON / HTML / XML / 画像 / バイナリ）
+- 設定のエクスポート / インポート（JSON ファイル）
+- CORS 回避のためのサーバーサイドプロキシ（`/api/proxy`）
+- 全データを **IndexedDB** に永続化（サーバー DB 不使用）
+- Chrome 拡張機能としてインストール可能
+
+## 技術スタック
+
+| 項目 | 内容 |
+|------|------|
+| フレームワーク | Next.js 16.2.4（App Router） |
+| UI | React 19 + TypeScript |
+| スタイリング | Tailwind CSS v4 |
+| テスト | Vitest + fake-indexeddb |
+| ストレージ | IndexedDB + localStorage（展開状態のみ） |
+
+## 開発サーバーの起動
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000) をブラウザで開く。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ビルド
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+## テスト
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm test
+```
 
 ## Chrome 拡張機能としてインストール
 

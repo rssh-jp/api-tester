@@ -23,44 +23,51 @@ Talend API Tester ライクな REST API テストツール。ブラウザ上で 
 ## 3. ディレクトリ・ファイル構造
 
 ```
-app/
-  page.tsx              ルートページ（ApiTester をマウント、Server Component）
-  layout.tsx            グローバルレイアウト（Server Component）
-  globals.css           Tailwind + ダークテーマ CSS 変数定義
-  api/
-    proxy/
-      route.ts          CORS 回避用プロキシ API Route（Node の http/https モジュール使用）
+src/
+  app/
+    page.tsx              ルートページ（ApiTester をマウント、Server Component）
+    layout.tsx            グローバルレイアウト（Server Component）
+    globals.css           Tailwind + ダークテーマ CSS 変数定義
+    api/
+      proxy/
+        route.ts          CORS 回避用プロキシ API Route（Node の http/https/zlib モジュール使用）
 
-components/
-  ApiTester.tsx         メイン状態コンテナ（左右ペイン分割）
-  Sidebar.tsx           左ペイン：サイドバー全体（履歴・カテゴリーツリー統合）
-  CategoryTree.tsx      カテゴリーツリー（ネスト表示）
-  CategoryEditor.tsx    右ペイン：カテゴリー編集（デフォルトヘッダー/パラメータ/変数/継承プレビュー）
-  UrlBar.tsx            URL 入力 + メソッド選択 + 送信ボタン
-  RequestPanel.tsx      リクエスト編集パネル（タブ: Headers / Params / Body）
-  ResponsePanel.tsx     レスポンス表示パネル（タブ: Body / Headers）
-  BatchRunTab.tsx       カテゴリー配下リクエスト一括実行タブ
-  KeyValueTable.tsx     キーバリューペア編集テーブル
-  JsonViewer.tsx        JSON Pretty/Raw 表示
-  HtmlViewer.tsx        HTML レスポンス表示（iframe サンドボックス）
-  XmlViewer.tsx         XML レスポンス表示（シンタックスハイライト）
-  ImageViewer.tsx       画像レスポンス表示
+  components/
+    ApiTester.tsx         メイン状態コンテナ（左右ペイン分割）
+    Sidebar.tsx           左ペイン：サイドバー全体（履歴・カテゴリーツリー統合）
+    CategoryTree.tsx      カテゴリーツリー（ネスト表示、ドラッグドロップ対応）
+    CategoryEditor.tsx    右ペイン：カテゴリー編集（デフォルトヘッダー/パラメータ/変数/継承プレビュー/設定エクスポートインポート）
+    UrlBar.tsx            URL 入力 + メソッド選択 + 送信ボタン
+    RequestPanel.tsx      リクエスト編集パネル（タブ: Headers / Params / Body）
+    ResponsePanel.tsx     レスポンス表示パネル（タブ: Body / Headers）
+    BatchRunTab.tsx       カテゴリー配下リクエスト一括実行タブ
+    KeyValueTable.tsx     キーバリューペア編集テーブル
+    JsonViewer.tsx        JSON Pretty/Raw 表示
+    HtmlViewer.tsx        HTML レスポンス表示（iframe サンドボックス）
+    XmlViewer.tsx         XML レスポンス表示（シンタックスハイライト）
+    ImageViewer.tsx       画像レスポンス表示
 
-lib/
-  types.ts              全共通型定義
-  storage.ts            IndexedDB CRUD（カテゴリー、リクエスト、履歴）+ localStorage 移行処理
-  inheritance.ts        カテゴリー継承マージロジック・変数展開
-  sendRequest.ts        HTTPリクエスト送信（プロキシ経由 or 直接 fetch）
+  hooks/
+    useDragAndDrop.ts     ドラッグドロップ移動ロジック（カテゴリー・リクエスト共用）
 
-lib/__tests__/
-  setup.ts              Vitest セットアップ（fake-indexeddb/auto）
-  inheritance.test.ts   inheritance.ts 単体テスト
-  storage.test.ts       storage.ts 単体テスト
-  sendRequest.test.ts   sendRequest.ts 単体テスト
+  lib/
+    types.ts              全共通型定義
+    storage.ts            IndexedDB CRUD（カテゴリー、リクエスト、履歴）+ エクスポート/インポート + localStorage 移行処理
+    inheritance.ts        カテゴリー継承マージロジック・変数展開
+    sendRequest.ts        HTTPリクエスト送信（プロキシ経由 or 直接 fetch）
+    urlBuilder.ts         URL + クエリパラメータ構築ユーティリティ
+
+  lib/__tests__/
+    setup.ts              Vitest セットアップ（fake-indexeddb/auto）
+    inheritance.test.ts   inheritance.ts 単体テスト
+    storage.test.ts       storage.ts 単体テスト
+    sendRequest.test.ts   sendRequest.ts 単体テスト
+    urlBuilder.test.ts    urlBuilder.ts 単体テスト
+    useDragAndDrop.test.ts  useDragAndDrop.ts 単体テスト
 ```
 
 - `page.tsx` と `layout.tsx` のみ Server Component。それ以外の全コンポーネントは `'use client'` を先頭に宣言する。
-- 新しいコンポーネントは `components/`、ユーティリティ・型は `lib/` に配置する。
+- 新しいコンポーネントは `components/`、カスタム Hook は `hooks/`、ユーティリティ・型は `lib/` に配置する。
 
 ---
 
@@ -142,6 +149,7 @@ type BatchRunStatus = 'pending' | 'running' | 'success' | 'failure' | 'skipped'
 interface BatchRunResult {
   requestId: string
   requestName: string
+  categoryName?: string          // 属するカテゴリー名（任意）
   method: HttpMethod
   url: string
   status: BatchRunStatus
@@ -150,6 +158,27 @@ interface BatchRunResult {
   responseTime?: number
   error?: string
 }
+
+interface ExportData {
+  version: 1                     // スキーマバージョン（現在は固定値 1）
+  exportedAt: number             // エクスポート日時（Unix ms）
+  categories: Category[]
+  requests: SavedRequest[]
+}
+
+type DragPhase = 'idle' | 'pressing' | 'dragging'
+
+interface DragItem {
+  type: 'category' | 'request'
+  id: string
+  name: string
+  method?: string
+}
+
+type DropTarget =
+  | { type: 'category'; id: string }
+  | { type: 'root' }
+  | null
 ```
 
 - ID 生成には必ず `genId()` を使用する（`Date.now().toString(36) + Math.random().toString(36).slice(2)` による一意文字列）。
@@ -209,6 +238,8 @@ interface BatchRunResult {
 - 履歴は最新 50 件のみ保持し、古いものは自動削除する（`addToHistory` 内で制御）。
 - `deleteCategory()` はサブカテゴリーとそれに属するリクエストを**カスケード削除**する。
 - `duplicateCategory()` はカテゴリーとサブカテゴリー・リクエストを再帰的にコピーする（ルートに `(copy)` サフィックス追加）。
+- `exportData()` は全カテゴリー・リクエストを `ExportData` 形式で返す。`importData()` は既存データを全消去してからインポートする。
+- `validateExportData(raw)` はインポート前に JSON の形式チェックと型の正規化を行い、不正データを弾く。
 - 旧 localStorage データ（`api-tester-history`, `api-tester-saved`, `api-tester-categories`）は初回アクセス時に IndexedDB へ自動マイグレーションし、旧キーを削除する。
 - `getCategories()` 読み込み時に `variables` フィールドがない旧データを `variables: []` へ自動マイグレーションする。
 
@@ -262,11 +293,62 @@ interface BatchRunResult {
 
 - Node の `http` / `https` モジュールを直接使用して外部リクエストを送信する（Next.js の fetch キャッシュを完全に回避）。
 - 最大 10 回のリダイレクトを自動で追跡する（303 レスポンスはメソッドを GET に変換）。
+- `Accept-Encoding: gzip, deflate, br` を送信し、`zlib` モジュールで gzip / deflate / Brotli を自動展開する。
+- リクエストには `User-Agent`・`Accept`・`Accept-Language`・`Accept-Encoding` のブラウザデフォルトヘッダーが自動付与される（ユーザー指定ヘッダーで上書き可能）。
 - レスポンスボディは `Buffer.concat(chunks)` で結合する。
 
 ---
 
-## 9. コーディング規約・注意事項
+## 9. URL 構築ユーティリティ（lib/urlBuilder.ts）
+
+| 関数 | 説明 |
+|------|------|
+| `buildUrlWithParams(baseUrl, params)` | 有効なクエリパラメータを URL に結合して返す |
+| `extractBaseUrl(url)` | クエリ文字列を除いたベース URL を返す |
+
+### 注意点
+
+- URL やパラメータ値に `${...}` プレースホルダーが含まれる場合、`new URL()` によるパーセントエンコードを避けるため文字列結合にフォールバックする。
+- `${...}` を含まない場合は `new URL()` を使用して正規化する（不正な URL は文字列結合にフォールバック）。
+
+---
+
+## 10. ドラッグドロップ（hooks/useDragAndDrop.ts）
+
+カテゴリーとリクエストのドラッグドロップ移動を管理するカスタム Hook。
+
+### エクスポート
+
+| シンボル | 説明 |
+|------|------|
+| `useDragAndDrop(options)` | ドラッグドロップ状態とイベントハンドラを返す Hook |
+| `isDescendant(ancestorId, nodeId, categories)` | `nodeId` が `ancestorId` の子孫かどうかを返すユーティリティ |
+
+### Hook の戻り値
+
+| プロパティ | 説明 |
+|------|------|
+| `phase` | `DragPhase`（`'idle'` / `'pressing'` / `'dragging'`） |
+| `dragItem` | ドラッグ中のアイテム（`DragItem \| null`） |
+| `dropTarget` | 現在のドロップ先（`DropTarget \| null`） |
+| `ghostPos` | ゴースト要素の座標 `{ x, y }` |
+| `handlePointerDown` | ポインターダウンイベントハンドラ |
+| `isDragSource(id)` | 指定 ID がドラッグ元かどうか |
+| `isActiveDropTarget(target)` | 指定ターゲットがアクティブなドロップ先かどうか |
+| `isValidTarget(categoryId)` | ドロップ先として有効なカテゴリーかどうか（自身や子孫は無効） |
+| `wasJustDragging()` | 直前のポインターアップがドラッグ終了だったかどうか（クリックとの区別用） |
+| `isPressingSource(id)` | 指定 ID が長押し待機中かどうか |
+
+### 動作仕様
+
+- 長押し（300 ms）でドラッグ開始、ポインターキャプチャで要素外へのドラッグを追跡する。
+- `data-drop-zone-type` / `data-drop-zone-id` 属性で DOM からドロップ先を検出する。
+- カテゴリーへのホバー時に 800 ms 後に自動展開する。
+- カテゴリーは自身や子孫カテゴリーへはドロップできない（`isDescendant` で検証）。
+
+---
+
+## 11. コーディング規約・注意事項
 
 ### TypeScript
 
@@ -306,7 +388,7 @@ interface BatchRunResult {
 
 ---
 
-## 10. 新機能追加時のガイドライン
+## 12. 新機能追加時のガイドライン
 
 1. **型定義を先に更新する**: 新しいデータ構造は必ず `lib/types.ts` に追加してからコンポーネントを実装する。
 2. **ストレージ変更時はマイグレーションを考慮する**: IndexedDB スキーマ変更はバージョン番号を上げて `onupgradeneeded` で処理する。既存フィールドの追加はデータ読み込み時のデフォルト補完で対応する。
