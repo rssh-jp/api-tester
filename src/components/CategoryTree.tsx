@@ -160,6 +160,7 @@ function RequestRow({
           </span>
           <span
             className="flex-1 min-w-0 text-xs text-slate-400 truncate select-none"
+            onPointerDown={e => e.stopPropagation()}
             onDoubleClick={e => {
               e.preventDefault();
               e.stopPropagation();
@@ -344,6 +345,7 @@ function CategoryNode({
           <>
             <span
             className="flex-1 min-w-0 text-sm text-slate-300 truncate select-none"
+            onPointerDown={e => e.stopPropagation()}
             onDoubleClick={e => {
               e.preventDefault();
               e.stopPropagation();

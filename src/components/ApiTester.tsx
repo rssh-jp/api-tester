@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus, Download, Upload } from 'lucide-react';
 import {
   HttpMethod,
@@ -255,6 +255,14 @@ export default function ApiTester() {
   const selectedRequest =
     selection?.type === 'request' ? requests.find(r => r.id === selection.id) ?? null : null;
 
+  const isSaveable = useMemo(() => {
+    if (!selectedRequest) return false;
+    return (
+      editingName !== selectedRequest.name ||
+      JSON.stringify(editingRequest) !== JSON.stringify(selectedRequest.request)
+    );
+  }, [selectedRequest, editingName, editingRequest]);
+
   const selectedCategory =
     selection?.type === 'category'
       ? categories.find(c => c.id === selection.id) ?? null
@@ -381,6 +389,18 @@ export default function ApiTester() {
     await updateSavedRequest(selectedRequest.id, { name: editingName, request: { ...editingRequest } });
     setRequests(await getSaved());
   }, [selectedRequest, editingName, editingRequest]);
+
+  // ── keyboard shortcuts ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveCurrentRequest();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleSaveCurrentRequest]);
 
   // ── category handlers ──────────────────────────────────────────────────────
 
@@ -708,7 +728,13 @@ export default function ApiTester() {
                 </div>
                 <button
                   onClick={handleSaveCurrentRequest}
-                  className="flex-shrink-0 px-3 py-2 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700/60"
+                  disabled={!isSaveable}
+                  title="保存 (Ctrl+S)"
+                  className={`flex-shrink-0 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+                    isSaveable
+                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/60 shadow-lg shadow-indigo-600/20 cursor-pointer'
+                      : 'bg-slate-800 text-slate-500 border-slate-700/60 cursor-not-allowed'
+                  }`}
                 >
                   Save
                 </button>
