@@ -4,6 +4,8 @@ import * as https from 'node:https';
 import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
 
+export const dynamic = 'force-dynamic';
+
 const BROWSER_DEFAULT_HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -144,6 +146,7 @@ export async function POST(req: NextRequest) {
 
     const responseHeaders = { ...headers };
     delete responseHeaders['content-encoding'];
+    delete responseHeaders['content-length'];
 
     return NextResponse.json({
       status: statusCode,
@@ -156,7 +159,7 @@ export async function POST(req: NextRequest) {
       redirected: false,
       finalUrl,
       isBinary,
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Request failed';
     return NextResponse.json({ error: message }, { status: 500 });

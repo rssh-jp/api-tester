@@ -27,7 +27,7 @@ function openDB(): Promise<IDBDatabase> {
     };
     req.onsuccess = (e) => resolve((e.target as IDBOpenDBRequest).result);
     /* c8 ignore next */
-    req.onerror = (e) => reject((e.target as IDBOpenDBRequest).error);
+    req.onerror = (e) => { dbPromise = null; reject((e.target as IDBOpenDBRequest).error); };
   });
   return dbPromise;
 }

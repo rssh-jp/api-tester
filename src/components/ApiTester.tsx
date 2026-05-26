@@ -220,10 +220,16 @@ export default function ApiTester() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  // ── reset response when selection changes ──────────────────────────────────
+  // ── restore last response when selection changes ────────────────────────────
 
   useEffect(() => {
-    setResponse(null);
+    if (selection?.type === 'request') {
+      const found = requests.find(r => r.id === selection.id);
+      setResponse(found?.lastResponse ?? null);
+    } else {
+      setResponse(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection]);
 
   // ── sync editingRequest when selection or requests change ──────────────────
@@ -362,7 +368,7 @@ export default function ApiTester() {
 
       // Auto-save back
       if (selectedRequest) {
-        await updateSavedRequest(selectedRequest.id, { request: { ...editingRequest } });
+        await updateSavedRequest(selectedRequest.id, { request: { ...editingRequest }, lastResponse: responseState });
         setRequests(await getSaved());
       }
     } catch (err: unknown) {
@@ -487,6 +493,11 @@ export default function ApiTester() {
   const handleMoveCategory = useCallback(async (categoryId: string, newParentId: string | null) => {
     await updateCategory(categoryId, { parentId: newParentId });
     setCategories(await getCategories());
+  }, []);
+
+  const handleUpdateLastResponse = useCallback(async (requestId: string, response: ResponseState) => {
+    await updateSavedRequest(requestId, { lastResponse: response });
+    setRequests(await getSaved());
   }, []);
 
   // ── history handlers ───────────────────────────────────────────────────────
@@ -698,6 +709,7 @@ export default function ApiTester() {
               requests={requests}
               onChange={handleCategoryChange}
               onSelectRequest={id => setSelection({ type: 'request', id })}
+              onUpdateLastResponse={handleUpdateLastResponse}
             />
           )}
 

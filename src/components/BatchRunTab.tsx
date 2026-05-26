@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Play, RotateCcw, Loader2, Inbox, CheckCircle2, XCircle } from 'lucide-react';
 import {
   Category,
+  ResponseState,
   SavedRequest,
   BatchRunStatus,
   BatchRunResult,
@@ -18,6 +19,7 @@ interface BatchRunTabProps {
   categories: Category[];
   requests: SavedRequest[];
   onSelectRequest: (id: string) => void;
+  onUpdateLastResponse?: (requestId: string, response: ResponseState) => void;
 }
 
 const METHOD_BG: Record<string, string> = {
@@ -67,6 +69,7 @@ export default function BatchRunTab({
   categories,
   requests,
   onSelectRequest,
+  onUpdateLastResponse,
 }: BatchRunTabProps) {
   const [results, setResults] = useState<BatchRunResult[]>([]);
   const [running, setRunning] = useState(false);
@@ -193,6 +196,16 @@ export default function BatchRunTab({
                 : r
             )
           );
+          onUpdateLastResponse?.(req.id, {
+            status: 0,
+            statusText: 'Error',
+            headers: {},
+            body: '',
+            responseTime: data.responseTime || 0,
+            size: 0,
+            error: data.error,
+            sentUrl: finalUrl,
+          });
           continue;
         }
 
@@ -210,6 +223,19 @@ export default function BatchRunTab({
               : r
           )
         );
+        onUpdateLastResponse?.(req.id, {
+          status: data.status || 0,
+          statusText: data.statusText || '',
+          headers: data.headers || {},
+          body: data.body ?? '',
+          responseTime: data.responseTime || 0,
+          size: data.size || 0,
+          contentType: data.contentType,
+          redirected: data.redirected,
+          finalUrl: data.finalUrl,
+          isBinary: data.isBinary,
+          sentUrl: finalUrl,
+        });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Network error';
         setResults(prev =>
@@ -217,6 +243,16 @@ export default function BatchRunTab({
             r.requestId === req.id ? { ...r, status: 'failure', error: message } : r
           )
         );
+        onUpdateLastResponse?.(req.id, {
+          status: 0,
+          statusText: 'Error',
+          headers: {},
+          body: '',
+          responseTime: 0,
+          size: 0,
+          error: message,
+          sentUrl: req.request.url,
+        });
       }
     }
 

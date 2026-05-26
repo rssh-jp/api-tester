@@ -66,6 +66,7 @@ export interface SavedRequest {
   categoryId: string | null;
   request: RequestState;
   createdAt: number;
+  lastResponse?: ResponseState;
 }
 
 /** What is currently selected in the left pane */

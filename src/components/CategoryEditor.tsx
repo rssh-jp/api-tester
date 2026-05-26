@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import { Folder, GitBranch, Info } from 'lucide-react';
-import { Category, KeyValuePair, SavedRequest } from '@/lib/types';
+import { Category, KeyValuePair, ResponseState, SavedRequest } from '@/lib/types';
 import { buildCategoryChain } from '@/lib/inheritance';
 import KeyValueTable from './KeyValueTable';
 import BatchRunTab from './BatchRunTab';
@@ -13,12 +13,13 @@ interface CategoryEditorProps {
   requests: SavedRequest[];
   onChange: (updated: Category) => void;
   onSelectRequest: (id: string) => void;
+  onUpdateLastResponse?: (requestId: string, response: ResponseState) => void;
 }
 
 type Tab = '設定' | 'Batch Run';
 const TABS: Tab[] = ['設定', 'Batch Run'];
 
-export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest }: CategoryEditorProps) {
+export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest, onUpdateLastResponse }: CategoryEditorProps) {
   const [activeTab, setActiveTab] = useState<Tab>('Batch Run');
 
   // Build breadcrumb path: root → ... → parent (reversed ancestor chain)
@@ -147,6 +148,7 @@ export default function CategoryEditor({ category, categories, requests, onChang
             categories={categories}
             requests={requests}
             onSelectRequest={onSelectRequest}
+            onUpdateLastResponse={onUpdateLastResponse}
           />
         )}
       </div>
