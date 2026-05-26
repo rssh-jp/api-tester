@@ -717,6 +717,11 @@ export default function ApiTester() {
             <>
               {/* Request name editor */}
               <div className="px-5 pt-4 pb-3 border-b border-slate-800/60 bg-[#0d1117] flex-shrink-0">
+                {selectedRequest?.categoryId && (
+                  <div className="text-xs text-slate-500 mb-1 font-mono">
+                    {[...buildCategoryChain(selectedRequest.categoryId, categories)].reverse().map(c => c.name).join(' / ')} /
+                  </div>
+                )}
                 <input
                   type="text"
                   value={editingName}
