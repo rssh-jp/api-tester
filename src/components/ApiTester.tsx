@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus, Download, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sun, Moon, Clock, Zap, Plus, Download, Upload, Terminal, Check } from 'lucide-react';
 import {
   HttpMethod,
   KeyValuePair,
@@ -33,6 +33,7 @@ import {
 import { computeEffectiveValues, buildCategoryChain, mergeKeyValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
 import { sendRequest } from '@/lib/sendRequest';
+import { buildCurlCommand } from '@/lib/curlBuilder';
 import UrlBar from './UrlBar';
 import RequestPanel from './RequestPanel';
 import ResponsePanel from './ResponsePanel';
@@ -205,6 +206,7 @@ export default function ApiTester() {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [curlCopied, setCurlCopied] = useState(false);
 
   // ── mount ──────────────────────────────────────────────────────────────────
 
@@ -395,6 +397,81 @@ export default function ApiTester() {
     await updateSavedRequest(selectedRequest.id, { name: editingName, request: { ...editingRequest } });
     setRequests(await getSaved());
   }, [selectedRequest, editingName, editingRequest]);
+
+  // ── curl copy ──────────────────────────────────────────────────────────────
+
+  const handleCopyCurl = useCallback(async () => {
+    const categoryId = selectedRequest?.categoryId ?? null;
+    const { headers: effectiveHeaders, params: effectiveParams } = computeEffectiveValues(
+      editingRequest.headers,
+      editingRequest.params,
+      categoryId,
+      categories,
+    );
+    const variables = computeEffectiveVariables(categoryId, categories);
+    const resolvedUrl = applyVariables(editingRequest.url, variables);
+    const resolvedHeaders = effectiveHeaders.map(h => ({ ...h, value: applyVariables(h.value, variables) }));
+    const resolvedParams = effectiveParams.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+    const resolvedBody = applyVariables(editingRequest.body, variables);
+    const finalUrl = buildUrlWithParams(extractBaseUrl(resolvedUrl), resolvedParams);
+
+    const enabledHeaders: Record<string, string> = {};
+    resolvedHeaders.forEach(h => { enabledHeaders[h.key] = h.value; });
+    if (editingRequest.contentType && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(editingRequest.method)) {
+      enabledHeaders['Content-Type'] = editingRequest.contentType;
+    }
+
+    const curl = buildCurlCommand(editingRequest.method, finalUrl, enabledHeaders, resolvedBody);
+    try {
+      await navigator.clipboard.writeText(curl);
+      setCurlCopied(true);
+      setTimeout(() => setCurlCopied(false), 2000);
+    } catch {
+      window.prompt('curlコマンド（手動でコピーしてください）:', curl);
+    }
+  }, [editingRequest, selectedRequest, categories]);
+
+  const handleCopyCategoryRequests = useCallback(async (categoryId: string) => {
+    function getAllRequests(catId: string): SavedRequest[] {
+      const direct = requests.filter(r => r.categoryId === catId);
+      const children = categories.filter(c => c.parentId === catId);
+      return [...direct, ...children.flatMap(c => getAllRequests(c.id))];
+    }
+    const reqs = getAllRequests(categoryId);
+    if (reqs.length === 0) return;
+
+    const curlCommands = reqs.map(req => {
+      const { headers: effectiveHeaders, params: effectiveParams } = computeEffectiveValues(
+        req.request.headers,
+        req.request.params,
+        req.categoryId,
+        categories,
+      );
+      const variables = computeEffectiveVariables(req.categoryId, categories);
+      const resolvedUrl = applyVariables(req.request.url, variables);
+      const resolvedHeaders = effectiveHeaders.map(h => ({ ...h, value: applyVariables(h.value, variables) }));
+      const resolvedParams = effectiveParams.map(p => ({ ...p, value: applyVariables(p.value, variables) }));
+      const resolvedBody = applyVariables(req.request.body, variables);
+      const finalUrl = buildUrlWithParams(extractBaseUrl(resolvedUrl), resolvedParams);
+
+      const enabledHeaders: Record<string, string> = {};
+      resolvedHeaders.forEach(h => { enabledHeaders[h.key] = h.value; });
+      if (req.request.contentType && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.request.method)) {
+        enabledHeaders['Content-Type'] = req.request.contentType;
+      }
+
+      const chain = req.categoryId ? buildCategoryChain(req.categoryId, categories) : [];
+      const catPath = [...chain].reverse().map(c => c.name).join(' / ');
+      const comment = catPath ? `# ${catPath} / ${req.name}` : `# ${req.name}`;
+      return `${comment}\n${buildCurlCommand(req.request.method, finalUrl, enabledHeaders, resolvedBody)}`;
+    });
+
+    try {
+      await navigator.clipboard.writeText(curlCommands.join('\n\n'));
+    } catch {
+      window.prompt(`curlコマンド ${reqs.length}件（手動でコピーしてください）:`, curlCommands.join('\n\n'));
+    }
+  }, [categories, requests]);
 
   // ── keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -710,6 +787,7 @@ export default function ApiTester() {
               onChange={handleCategoryChange}
               onSelectRequest={id => setSelection({ type: 'request', id })}
               onUpdateLastResponse={handleUpdateLastResponse}
+              onCopyCategoryRequests={() => handleCopyCategoryRequests(selectedCategory.id)}
             />
           )}
 
@@ -743,6 +821,14 @@ export default function ApiTester() {
                     onSend={handleSend}
                   />
                 </div>
+                <button
+                  onClick={handleCopyCurl}
+                  title="curlコマンドをコピー"
+                  className="flex-shrink-0 flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-lg border border-slate-700/60 bg-slate-800 hover:bg-slate-700/60 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  {curlCopied ? <Check size={13} className="text-emerald-400" /> : <Terminal size={13} />}
+                  {curlCopied ? 'Copied!' : 'cURL'}
+                </button>
                 <button
                   onClick={handleSaveCurrentRequest}
                   disabled={!isSaveable}

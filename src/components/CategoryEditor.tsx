@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import { Folder, GitBranch, Info } from 'lucide-react';
+import { Folder, GitBranch, Info, Terminal } from 'lucide-react';
 import { Category, KeyValuePair, ResponseState, SavedRequest } from '@/lib/types';
 import { buildCategoryChain } from '@/lib/inheritance';
 import KeyValueTable from './KeyValueTable';
@@ -14,12 +14,13 @@ interface CategoryEditorProps {
   onChange: (updated: Category) => void;
   onSelectRequest: (id: string) => void;
   onUpdateLastResponse?: (requestId: string, response: ResponseState) => void;
+  onCopyCategoryRequests?: () => void;
 }
 
 type Tab = '設定' | 'Batch Run';
 const TABS: Tab[] = ['設定', 'Batch Run'];
 
-export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest, onUpdateLastResponse }: CategoryEditorProps) {
+export default function CategoryEditor({ category, categories, requests, onChange, onSelectRequest, onUpdateLastResponse, onCopyCategoryRequests }: CategoryEditorProps) {
   const [activeTab, setActiveTab] = useState<Tab>('Batch Run');
 
   // Build breadcrumb path: root → ... → parent (reversed ancestor chain)
@@ -39,6 +40,16 @@ export default function CategoryEditor({ category, categories, requests, onChang
             placeholder="カテゴリー名"
             className="flex-1 bg-transparent text-xl font-semibold text-slate-100 border-b border-transparent hover:border-slate-700 focus:border-indigo-500/80 focus:outline-none px-0 py-0.5"
           />
+          {onCopyCategoryRequests && (
+            <button
+              onClick={onCopyCategoryRequests}
+              title="カテゴリー内全リクエストのcurlを一括コピー"
+              className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-700/60 bg-slate-800/60 hover:bg-teal-500/10 hover:border-teal-500/40 hover:text-teal-400 text-slate-400 transition-colors"
+            >
+              <Terminal size={13} />
+              curl 一括コピー
+            </button>
+          )}
         </div>
 
         {/* Breadcrumb */}
