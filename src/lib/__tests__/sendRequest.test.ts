@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 describe('sendRequest (proxy mode - STATIC=false)', () => {
   beforeEach(() => {
     vi.resetModules();
+    delete process.env.NEXT_PUBLIC_STATIC_EXPORT;
+    vi.unstubAllGlobals();
   });
 
   it('POSTs to /api/proxy and returns parsed JSON', async () => {
@@ -13,13 +15,17 @@ describe('sendRequest (proxy mode - STATIC=false)', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     const { sendRequest } = await import('../sendRequest');
-    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+    const result = await sendRequest({ method: 'GET', url: 'http://example.com', headers: {}, timeoutMs: 1234 });
 
     expect(result).toEqual(mockResult);
     expect(mockFetch).toHaveBeenCalledWith('/api/proxy', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }));
+    const body = (mockFetch.mock.calls[0]?.[1] as { body?: string } | undefined)?.body;
+    expect(body).toBeTypeOf('string');
+    const parsedBody = JSON.parse(body ?? '{}') as { timeoutMs?: number };
+    expect(parsedBody.timeoutMs).toBe(1234);
   });
 });
 
@@ -69,6 +75,17 @@ describe('sendRequest (static mode - STATIC=true)', () => {
     expect(result.isBinary).toBe(false);
     expect(result.contentType).toBe('application/json');
     expect(result.headers['content-type']).toBe('application/json');
+  });
+
+  it('passes AbortController signal to fetch options', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(makeMockResponse());
+    vi.stubGlobal('fetch', mockFetch);
+
+    const { sendRequest } = await import('../sendRequest');
+    await sendRequest({ method: 'GET', url: 'http://example.com', headers: {} });
+
+    const options = mockFetch.mock.calls[0]?.[1] as { signal?: AbortSignal } | undefined;
+    expect(options?.signal).toBeDefined();
   });
 
   it('handles binary (image/*) response', async () => {

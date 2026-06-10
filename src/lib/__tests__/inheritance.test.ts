@@ -16,6 +16,7 @@ function makeCategory(id: string, parentId: string | null, overrides: Partial<Ca
     defaultHeaders: [],
     defaultParams: [],
     variables: [],
+    timeoutMs: 30000,
     createdAt: 0,
     ...overrides,
   };

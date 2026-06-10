@@ -1,8 +1,11 @@
+import { DEFAULT_REQUEST_TIMEOUT_MS } from './types';
+
 export interface SendRequestParams {
   method: string;
   url: string;
   headers: Record<string, string>;
   body?: string;
+  timeoutMs?: number;
 }
 
 export interface SendRequestResult {
@@ -21,12 +24,20 @@ export interface SendRequestResult {
 
 const STATIC = process.env.NEXT_PUBLIC_STATIC_EXPORT === 'true';
 
+function normalizeRequestTimeoutMs(timeoutMs: number | undefined): number {
+  return typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs >= 1
+    ? timeoutMs
+    : DEFAULT_REQUEST_TIMEOUT_MS;
+}
+
 export async function sendRequest(params: SendRequestParams): Promise<SendRequestResult> {
+  const timeoutMs = normalizeRequestTimeoutMs(params.timeoutMs);
+
   if (!STATIC) {
     const res = await fetch('/api/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, timeoutMs }),
       cache: 'no-store',
     });
     return res.json();
@@ -34,13 +45,32 @@ export async function sendRequest(params: SendRequestParams): Promise<SendReques
 
   const startTime = Date.now();
   const canHaveBody = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(params.method);
-  const fetchRes = await fetch(params.url, {
-    method: params.method,
-    headers: params.headers,
-    body: canHaveBody && params.body ? params.body : undefined,
-    redirect: 'follow',
-    cache: 'no-store',
-  });
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  let fetchRes: Response;
+  try {
+    fetchRes = await fetch(params.url, {
+      method: params.method,
+      headers: params.headers,
+      body: canHaveBody && params.body ? params.body : undefined,
+      redirect: 'follow',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+  } catch (error: unknown) {
+    if (timedOut || (error instanceof DOMException && error.name === 'AbortError')) {
+      throw new Error(`Request timeout (${timeoutMs}ms)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   const responseTime = Date.now() - startTime;
 
   const contentType = fetchRes.headers.get('content-type') ?? '';

@@ -12,6 +12,7 @@ import {
   Category,
   Selection,
   ExportData,
+  DEFAULT_REQUEST_TIMEOUT_MS,
 } from '@/lib/types';
 import {
   getHistory,
@@ -340,6 +341,9 @@ export default function ApiTester() {
         url: finalUrl,
         headers: enabledHeaders,
         body: resolvedBody || undefined,
+        timeoutMs: selectedRequest?.categoryId
+          ? (categories.find(c => c.id === selectedRequest.categoryId)?.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+          : DEFAULT_REQUEST_TIMEOUT_MS,
       });
 
       const responseState: ResponseState = {
@@ -497,6 +501,7 @@ export default function ApiTester() {
       defaultHeaders: [],
       defaultParams: [],
       variables: [],
+      timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
       createdAt: Date.now(),
     };
     await saveCategory(cat);

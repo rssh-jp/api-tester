@@ -1,7 +1,13 @@
-import { HistoryItem, SavedRequest, Category, ExportData, HttpMethod, KeyValuePair, RequestState } from './types';
+import { HistoryItem, SavedRequest, Category, ExportData, HttpMethod, KeyValuePair, RequestState, DEFAULT_REQUEST_TIMEOUT_MS } from './types';
 
 function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function normalizeTimeoutMs(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1
+    ? value
+    : DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
 // ── DB 初期化 ──────────────────────────────────────────────────────────────
@@ -184,7 +190,11 @@ export async function getCategories(): Promise<Category[]> {
   const tx = db.transaction('categories', 'readonly');
   const all = await idbReq<Category[]>(tx.objectStore('categories').getAll());
   return all
-    .map(c => ({ ...c, variables: c.variables ?? [] }))
+    .map(c => ({
+      ...c,
+      variables: c.variables ?? [],
+      timeoutMs: normalizeTimeoutMs((c as unknown as Record<string, unknown>)['timeoutMs']),
+    }))
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
@@ -334,6 +344,7 @@ function stripCategory(raw: unknown): Category {
       ? (c['defaultParams'] as unknown[]).map(stripKeyValuePair) : [],
     variables: Array.isArray(c['variables'])
       ? (c['variables'] as unknown[]).map(stripKeyValuePair) : [],
+    timeoutMs: normalizeTimeoutMs(c['timeoutMs']),
     description: typeof c['description'] === 'string' ? c['description'] : undefined,
     createdAt: typeof c['createdAt'] === 'number' ? c['createdAt'] : Date.now(),
   };

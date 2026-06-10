@@ -10,6 +10,7 @@ function makeCategory(id: string, parentId: string | null): Category {
     defaultHeaders: [],
     defaultParams: [],
     variables: [],
+    timeoutMs: 30000,
     createdAt: 0,
   };
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import type { HistoryItem, SavedRequest, Category } from '../types';
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../types';
 
 function makeHistoryItem(id: string, timestamp = 0): HistoryItem {
   return {
@@ -29,6 +30,7 @@ function makeCategory(id: string, parentId: string | null = null): Category {
     defaultHeaders: [],
     defaultParams: [],
     variables: [],
+    timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
     createdAt: Date.now(),
   };
 }
@@ -184,6 +186,15 @@ describe('storage', () => {
       await storage.saveCategory(cat as unknown as Category);
       const cats = await storage.getCategories();
       expect(cats[0].variables).toEqual([]);
+    });
+
+    it('normalizes missing timeoutMs to default', async () => {
+      const cat = makeCategory('c2') as unknown as Record<string, unknown>;
+      delete cat.timeoutMs;
+      await storage.saveCategory(cat as unknown as Category);
+      const cats = await storage.getCategories();
+      const found = cats.find(c => c.id === 'c2');
+      expect(found?.timeoutMs).toBe(DEFAULT_REQUEST_TIMEOUT_MS);
     });
   });
 

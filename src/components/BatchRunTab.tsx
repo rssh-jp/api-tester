@@ -9,6 +9,7 @@ import {
   BatchRunStatus,
   BatchRunResult,
   HttpMethod,
+  DEFAULT_REQUEST_TIMEOUT_MS,
 } from '@/lib/types';
 import { computeEffectiveValues, computeEffectiveVariables, applyVariables } from '@/lib/inheritance';
 import { buildUrlWithParams, extractBaseUrl } from '@/lib/urlBuilder';
@@ -186,6 +187,9 @@ export default function BatchRunTab({
           url: finalUrl,
           headers: headersObj,
           body: resolvedBody || undefined,
+          timeoutMs: req.categoryId
+            ? (categories.find(c => c.id === req.categoryId)?.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+            : DEFAULT_REQUEST_TIMEOUT_MS,
         });
 
         if (data.error) {
@@ -265,21 +269,27 @@ export default function BatchRunTab({
   const allDone = hasRun && !running;
   const passed = results.filter(r => r.status === 'success').length;
   const failed = results.filter(r => r.status === 'failure').length;
+  const categoryTimeoutMs = Number.isFinite(category.timeoutMs) && category.timeoutMs >= 1
+    ? Math.round(category.timeoutMs)
+    : DEFAULT_REQUEST_TIMEOUT_MS;
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 flex-shrink-0">
-        <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={includeSubcategories}
-            onChange={e => setIncludeSubcategories(e.target.checked)}
-            disabled={running}
-            className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
-          />
-          サブカテゴリーを含める
-        </label>
+        <div className="flex items-center gap-5">
+          <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={includeSubcategories}
+              onChange={e => setIncludeSubcategories(e.target.checked)}
+              disabled={running}
+              className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
+            />
+            サブカテゴリーを含める
+          </label>
+          <span className="text-xs text-slate-500">Timeout: {categoryTimeoutMs} ms</span>
+        </div>
 
         <button
           onClick={runAll}

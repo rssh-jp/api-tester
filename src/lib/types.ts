@@ -1,5 +1,7 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+
 export interface KeyValuePair {
   id: string;
   key: string;
@@ -55,6 +57,8 @@ export interface Category {
   defaultParams: KeyValuePair[];
   /** Variables available for ${KEY} substitution in URL, headers, params, and body */
   variables: KeyValuePair[];
+  /** Request timeout in milliseconds */
+  timeoutMs: number;
   description?: string;
   createdAt: number;
 }

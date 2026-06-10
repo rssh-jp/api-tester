@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react';
 import { Folder, GitBranch, Info, Terminal } from 'lucide-react';
-import { Category, KeyValuePair, ResponseState, SavedRequest } from '@/lib/types';
+import { Category, KeyValuePair, ResponseState, SavedRequest, DEFAULT_REQUEST_TIMEOUT_MS } from '@/lib/types';
 import { buildCategoryChain } from '@/lib/inheritance';
 import KeyValueTable from './KeyValueTable';
 import BatchRunTab from './BatchRunTab';
@@ -26,6 +26,9 @@ export default function CategoryEditor({ category, categories, requests, onChang
   // Build breadcrumb path: root → ... → parent (reversed ancestor chain)
   const ancestorChain = buildCategoryChain(category.parentId, categories);
   const breadcrumb = [...ancestorChain].reverse();
+  const timeoutMs = Number.isFinite(category.timeoutMs) && category.timeoutMs >= 1
+    ? Math.round(category.timeoutMs)
+    : DEFAULT_REQUEST_TIMEOUT_MS;
 
   return (
     <div className="flex flex-col h-full bg-[#0d1117] text-slate-200">
@@ -96,6 +99,30 @@ export default function CategoryEditor({ category, categories, requests, onChang
       <div className={`flex-1 ${activeTab === 'Batch Run' ? 'overflow-hidden' : 'overflow-auto p-5'}`}>
         {activeTab === '設定' && (
           <div className="flex flex-col gap-8">
+            <section>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Request Timeout</h3>
+              <div className="rounded-lg border border-slate-800 bg-[#161b27] p-4">
+                <label className="block text-xs text-slate-500 mb-2">タイムアウト（ms）</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={timeoutMs}
+                    onChange={e => {
+                      const timeoutMs = Number(e.target.value);
+                      const nextTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs >= 1
+                        ? Math.round(timeoutMs)
+                        : DEFAULT_REQUEST_TIMEOUT_MS;
+                      onChange({ ...category, timeoutMs: nextTimeoutMs });
+                    }}
+                    className="w-32 rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/80"
+                  />
+                  <span className="text-xs text-slate-500">このカテゴリー配下の送信に適用</span>
+                </div>
+              </div>
+            </section>
+
             <section>
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">デフォルト Headers</h3>
               <div className="flex items-start gap-2 mb-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg px-3 py-2.5 text-xs text-slate-400">

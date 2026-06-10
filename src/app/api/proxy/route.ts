@@ -3,6 +3,7 @@ import * as http from 'node:http';
 import * as https from 'node:https';
 import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '@/lib/types';
 
 const BROWSER_DEFAULT_HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -19,11 +20,18 @@ async function decompress(buffer: Buffer, encoding: string): Promise<Buffer> {
   return buffer;
 }
 
+function normalizeRequestTimeoutMs(timeoutMs: unknown): number {
+  return typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs >= 1
+    ? timeoutMs
+    : DEFAULT_REQUEST_TIMEOUT_MS;
+}
+
 function makeRequest(
   url: string,
   method: string,
   headers: Record<string, string>,
   body: string | undefined,
+  timeoutMs: number,
   redirectCount = 0
 ): Promise<{
   statusCode: number;
@@ -53,6 +61,7 @@ function makeRequest(
       path: parsedUrl.pathname + parsedUrl.search,
       method,
       headers,
+      timeout: timeoutMs,
     };
 
     const clientReq = lib.request(options, (res) => {
@@ -71,7 +80,7 @@ function makeRequest(
         const redirectBody =
           redirectMethod === 'GET' ? undefined : body;
         resolve(
-          makeRequest(redirectUrl, redirectMethod, headers, redirectBody, redirectCount + 1)
+          makeRequest(redirectUrl, redirectMethod, headers, redirectBody, timeoutMs, redirectCount + 1)
         );
         return;
       }
@@ -97,6 +106,9 @@ function makeRequest(
     });
 
     clientReq.on('error', reject);
+    clientReq.setTimeout(timeoutMs, () => {
+      clientReq.destroy(new Error(`Request timeout (${timeoutMs}ms)`));
+    });
 
     if (body) {
       clientReq.write(body);
@@ -107,7 +119,8 @@ function makeRequest(
 
 export async function POST(req: NextRequest) {
   try {
-    const { method, url, headers: reqHeaders, body } = await req.json();
+    const { method, url, headers: reqHeaders, body, timeoutMs } = await req.json();
+    const normalizedTimeoutMs = normalizeRequestTimeoutMs(timeoutMs);
 
     const startTime = Date.now();
 
@@ -123,7 +136,8 @@ export async function POST(req: NextRequest) {
       url,
       method,
       mergedHeaders,
-      bodyToSend
+      bodyToSend,
+      normalizedTimeoutMs
     );
 
     const responseTime = Date.now() - startTime;
